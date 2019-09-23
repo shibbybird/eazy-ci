@@ -1,0 +1,24 @@
+microVersion: '1.0'
+releases: ['v1.0.0', 'v1.1.0']
+image: 'test/image'
+deployment:
+  ports:
+    - 9000
+  health:
+    - '/bin/sh'
+    - '-c'
+    - 'while ! curl http://host.docker.internal:8080/health; do sleep 1; done;'
+integration:
+  bootstrap:
+    - '/bin/sh'
+    - '-c'
+    - 'liquibase'
+  runTest:
+    - '/bin/sh'
+    - '-c'
+    - 'npm test'
+  dependencies:
+    - 'github.com/shibbybird/test-api'
+    - 'github.com/shibbybird/test-service'
+  peerDependencies:
+    - 'github.com/shibbybird/cassandra-db'
