@@ -2,6 +2,21 @@
 
 
 [[projects]]
+  digest = "1:b498b36dbb2b306d1c5205ee5236c9e60352be8f9eea9bf08186723a9f75b4f3"
+  name = "github.com/emirpasic/gods"
+  packages = [
+    "containers",
+    "lists",
+    "lists/arraylist",
+    "trees",
+    "trees/binaryheap",
+    "utils",
+  ]
+  pruneopts = "UT"
+  revision = "1615341f118ae12f353cc8a983f35b584342c9b3"
+  version = "v1.12.0"
+
+[[projects]]
   branch = "master"
   digest = "1:62fe3a7ea2050ecbd753a71889026f83d73329337ada66325cbafd5dea5f713d"
   name = "github.com/jbenet/go-context"
@@ -26,6 +41,14 @@
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:d917313f309bda80d27274d53985bc65651f81a5b66b820749ac7f8ef061fd04"
+  name = "github.com/sergi/go-diff"
+  packages = ["diffmatchpatch"]
+  pruneopts = "UT"
+  revision = "1744e2970ca51c86172c8190fadad617561ed6e7"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:e4ed0afd67bf7be353921665cdac50834c867ff1bba153efc0745b755a7f5905"
   name = "github.com/src-d/gcfg"
   packages = [
@@ -48,14 +71,21 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:460a31748550a4709e33a3ab32ac8fd193d7c11434909381d741e7fbdece9e2b"
+  digest = "1:bec19726a4b9a15ba7f7f109b6294a4934e1e49ff6e9b4d509f46d20a5e1e34d"
   name = "golang.org/x/crypto"
   packages = [
+    "cast5",
     "curve25519",
     "ed25519",
     "ed25519/internal/edwards25519",
     "internal/chacha20",
     "internal/subtle",
+    "openpgp",
+    "openpgp/armor",
+    "openpgp/elgamal",
+    "openpgp/errors",
+    "openpgp/packet",
+    "openpgp/s2k",
     "poly1305",
     "ssh",
     "ssh/agent",
@@ -78,34 +108,75 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0b9eab718e36091a2b54afb645b0ef42658f544535ea3c7cbff03a9640415a77"
+  digest = "1:bc63533a3e3dfb2e7b8b4b73581509ee32907f5c996a42b34f7de14a37a87a1c"
   name = "golang.org/x/sys"
-  packages = ["cpu"]
+  packages = [
+    "cpu",
+    "unix",
+    "windows",
+  ]
   pruneopts = "UT"
   revision = "0a153f010e6963173baba2306531d173aa843137"
 
 [[projects]]
-  digest = "1:52de7f1f37ea514fda8b65c32ea4305f61a2962ee8a116921353d0d021571ced"
+  digest = "1:eb27cfcaf8d7e4155224dd0a209f1d0ab19784fef01be142638b78b7b6becd6b"
+  name = "gopkg.in/src-d/go-billy.v4"
+  packages = [
+    ".",
+    "helper/chroot",
+    "helper/polyfill",
+    "osfs",
+    "util",
+  ]
+  pruneopts = "UT"
+  revision = "780403cfc1bc95ff4d07e7b26db40a6186c5326e"
+  version = "v4.3.2"
+
+[[projects]]
+  digest = "1:b2ad0a18676cd4d5b4b180709c1ea34dbabd74b3d7db0cc01e6d287d5f1e3a99"
   name = "gopkg.in/src-d/go-git.v4"
   packages = [
+    ".",
     "config",
+    "internal/revision",
     "internal/url",
     "plumbing",
+    "plumbing/cache",
     "plumbing/filemode",
     "plumbing/format/config",
+    "plumbing/format/diff",
+    "plumbing/format/gitignore",
+    "plumbing/format/idxfile",
     "plumbing/format/index",
+    "plumbing/format/objfile",
+    "plumbing/format/packfile",
     "plumbing/format/pktline",
+    "plumbing/object",
     "plumbing/protocol/packp",
     "plumbing/protocol/packp/capability",
     "plumbing/protocol/packp/sideband",
+    "plumbing/revlist",
     "plumbing/storer",
     "plumbing/transport",
+    "plumbing/transport/client",
+    "plumbing/transport/file",
+    "plumbing/transport/git",
+    "plumbing/transport/http",
     "plumbing/transport/internal/common",
+    "plumbing/transport/server",
     "plumbing/transport/ssh",
     "storage",
+    "storage/filesystem",
+    "storage/filesystem/dotgit",
     "storage/memory",
     "utils/binary",
+    "utils/diff",
     "utils/ioutil",
+    "utils/merkletrie",
+    "utils/merkletrie/filesystem",
+    "utils/merkletrie/index",
+    "utils/merkletrie/internal/frame",
+    "utils/merkletrie/noder",
   ]
   pruneopts = "UT"
   revision = "0d1a009cbb604db18be960db5f1525b99a55d727"
@@ -132,6 +203,10 @@
   analyzer-version = 1
   input-imports = [
     "golang.org/x/crypto/ssh",
+    "gopkg.in/src-d/go-git.v4",
+    "gopkg.in/src-d/go-git.v4/plumbing/transport",
+    "gopkg.in/src-d/go-git.v4/plumbing/transport/client",
+    "gopkg.in/src-d/go-git.v4/plumbing/transport/http",
     "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh",
     "gopkg.in/yaml.v2",
   ]
