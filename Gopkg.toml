@@ -25,6 +25,15 @@
 #   unused-packages = true
 
 [[constraint]]
+  name = "github.com/docker/docker"
+  source = "github.com/moby/moby"
+  branch = "master"
+
+[[constraint]]
+  branch = "master"
+  name = "golang.org/x/crypto"
+
+[[constraint]]
   name = "gopkg.in/src-d/go-git.v4"
   version = "4.13.1"
 

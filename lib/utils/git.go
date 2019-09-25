@@ -19,11 +19,12 @@ func CreateGitClient() {
 // parseGitUri return host and path
 func parseGitURI(uri string) (string, string, error) {
 	i := strings.Index(uri, "/")
+
 	if i > -1 {
 		return uri[:i], uri[i+1:], nil
-	} else {
-		return "", "", errors.New("Failed to parse git uri e.g. 'github.com/shibbybird/eazy-ci'")
 	}
+
+	return "", "", errors.New("Failed to parse git uri e.g. 'github.com/shibbybird/eazy-ci'")
 }
 
 func generateGitURL(host string, path string) string {

@@ -21,20 +21,13 @@ type EazyYml struct {
 	}
 }
 
+func GetLatestImageName(eazy EazyYml) string {
+	return eazy.Image + "" + eazy.Releases[0]
+}
+
 // EazyzYmlUnmarshal EaztYml
 func EazyYmlUnmarshal(in []byte) (EazyYml, error) {
 	yml := EazyYml{}
 	err := yaml.Unmarshal(in, &yml)
 	return yml, err
-}
-
-func GetEazyYmlDependencies(in EazyYml, out *[]EazyYml) error {
-
-	/*
-		for _, dep := range in.Integration.Dependencies {
-
-		}
-	*/
-
-	return nil
 }
