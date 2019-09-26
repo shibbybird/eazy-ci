@@ -22,7 +22,11 @@ type EazyYml struct {
 }
 
 func GetLatestImageName(eazy EazyYml) string {
-	return eazy.Image + "" + eazy.Releases[0]
+	return eazy.Image + ":" + eazy.Releases[0]
+}
+
+func GetLatestIntegrationImageName(eazy EazyYml) string {
+	return eazy.Image + "-integration:" + eazy.Releases[0]
 }
 
 // EazyzYmlUnmarshal EaztYml

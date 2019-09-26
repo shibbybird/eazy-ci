@@ -13,12 +13,32 @@
   version = "v0.4.14"
 
 [[projects]]
+  digest = "1:6b6d999be55cc0e0704ed0ac4532175f1f71639fbda6d143dc86ac5a5d3bc87f"
+  name = "github.com/Microsoft/hcsshim"
+  packages = ["osversion"]
+  pruneopts = "UT"
+  revision = "f92b8fb9c92e17da496af5a69e3ee13fbe9916e1"
+  version = "v0.8.6"
+
+[[projects]]
   digest = "1:eb0414b9f841f10af66f6bec6074c5a26ebca71f374c12f187feca7554bad408"
   name = "github.com/containerd/containerd"
   packages = ["errdefs"]
   pruneopts = "UT"
   revision = "d50db0a42053864a270f648048f9a8b4f24eced3"
   version = "v1.2.9"
+
+[[projects]]
+  branch = "master"
+  digest = "1:33d9066d4a56cf6de4e81e37d85758f46ea154e874503cd2a0bf7a8b934fa203"
+  name = "github.com/containerd/continuity"
+  packages = [
+    "fs",
+    "syscallx",
+    "sysx",
+  ]
+  pruneopts = "UT"
+  revision = "75bee3e2ccb6402e3a986ab8bd3b17003fc0fdec"
 
 [[projects]]
   digest = "1:5d7f88f9487f370e3ae52155465156370fc5798102d811d2d4448d2385ccaf67"
@@ -34,7 +54,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:efa8b67ec773c14078f58fc9f0f7c0e4064b4475c1de521fdafbaa6c25407e03"
+  digest = "1:4eb1b049febaca10277e302e7e71b5e9940ea25eed697e3fee9f2370a3c24dd5"
   name = "github.com/docker/docker"
   packages = [
     "api",
@@ -55,6 +75,14 @@
     "api/types/volume",
     "client",
     "errdefs",
+    "pkg/archive",
+    "pkg/fileutils",
+    "pkg/idtools",
+    "pkg/ioutils",
+    "pkg/longpath",
+    "pkg/mount",
+    "pkg/pools",
+    "pkg/system",
   ]
   pruneopts = "UT"
   revision = "ef89d70aed01d05adde6b9f3cdeba1c90d87bde8"
@@ -169,6 +197,17 @@
   version = "v1.0.1"
 
 [[projects]]
+  digest = "1:1869683e323ebff2bdf8adcb560f82bf6f8d94019d35099e3403f7df12e9c07e"
+  name = "github.com/opencontainers/runc"
+  packages = [
+    "libcontainer/system",
+    "libcontainer/user",
+  ]
+  pruneopts = "UT"
+  revision = "baf6536d6259209c3edfa2b22237af82942d3dfa"
+  version = "v0.1.1"
+
+[[projects]]
   digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
   name = "github.com/pkg/errors"
   packages = ["."]
@@ -249,6 +288,14 @@
   ]
   pruneopts = "UT"
   revision = "aa69164e4478b84860dc6769c710c699c67058a3"
+
+[[projects]]
+  branch = "master"
+  digest = "1:b521f10a2d8fa85c04a8ef4e62f2d1e14d303599a55d64dabf9f5a02f84d35eb"
+  name = "golang.org/x/sync"
+  packages = ["errgroup"]
+  pruneopts = "UT"
+  revision = "cd5d95a43a6e21273425c7ae415d3df9ea832eeb"
 
 [[projects]]
   branch = "master"
@@ -372,6 +419,7 @@
     "github.com/docker/docker/api/types/container",
     "github.com/docker/docker/api/types/network",
     "github.com/docker/docker/client",
+    "github.com/docker/docker/pkg/archive",
     "github.com/docker/go-connections/nat",
     "golang.org/x/crypto/ssh",
     "gopkg.in/src-d/go-git.v4",
