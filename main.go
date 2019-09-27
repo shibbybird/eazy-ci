@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -25,7 +25,7 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		for range c {
-			cleanUp(ctx, 1)
+			cleanUp(ctx, 1, nil)
 		}
 	}()
 
@@ -53,7 +53,7 @@ func main() {
 
 	// try to set up ssh agent if ssh isn't working
 	if err != nil {
-		if strings.Contains(err.Error(), "ssh") {
+		if strings.Contains(strings.ToLower(err.Error()), "ssh") {
 			err = utils.SetUpSSHKeys()
 			if err != nil {
 				fail(ctx, err)
@@ -62,6 +62,8 @@ func main() {
 			if err != nil {
 				fail(ctx, err)
 			}
+		} else {
+			fail(ctx, err)
 		}
 	}
 
@@ -77,8 +79,21 @@ func main() {
 	}
 	err = utils.GetPeerDependencies(yml, &peerDependencies, peerDependenciesSet, *pemKeyPath)
 	if err != nil {
-		fail(ctx, errors.New("can not find peer dependencies on eazy.yml"))
+		if strings.Contains(strings.ToLower(err.Error()), "ssh") {
+			err = utils.SetUpSSHKeys()
+			if err != nil {
+				fail(ctx, err)
+			}
+			err = utils.GetPeerDependencies(yml, &peerDependencies, peerDependenciesSet, *pemKeyPath)
+			if err != nil {
+				fail(ctx, errors.New("can not find peer dependencies on eazy.yml"))
+			}
+		} else {
+			fail(ctx, err)
+		}
 	}
+
+	log.Println(peerDependencies)
 
 	for _, d := range peerDependencies {
 		startUnit(ctx, d, *isHostMode)
@@ -119,6 +134,7 @@ func main() {
 	}
 
 	if *isDev || *isIntegration {
+		log.Println("You are running in a Development Mode. Use ctrl-c to exit at anytime.")
 		go forever()
 		select {}
 	} else {
@@ -162,22 +178,22 @@ func startUnit(ctx context.Context, yml models.EazyYml, isHostMode bool) {
 }
 
 func success(ctx context.Context) {
-	cleanUp(ctx, 0)
+	cleanUp(ctx, 0, nil)
 }
 
 func fail(ctx context.Context, err error) {
-	cleanUp(ctx, 1)
-	panic(err)
+	cleanUp(ctx, 1, err)
 }
 
-func cleanUp(ctx context.Context, exitCode int) {
-	fmt.Println("Do Clean Up!")
+func cleanUp(ctx context.Context, exitCode int, err error) {
+	log.Println("Do Clean Up!")
 	for _, id := range liveContainerIDs {
 		err := utils.KillContainer(ctx, id)
 		if err != nil {
-			fmt.Println("container already shutdown: " + id)
+			log.Println("container already shutdown: " + id)
 		}
 	}
+	log.Println(err)
 	os.Exit(exitCode)
 }
 

@@ -54,9 +54,9 @@ func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *cli
 	pSet := nat.PortSet{}
 	if exposePorts {
 		for _, port := range eazy.Deployment.Ports {
-			p := nat.Port(string(port) + "/tcp")
+			p := nat.Port(port + "/tcp")
 			pMap[p] = []nat.PortBinding{{
-				HostPort: string(port),
+				HostPort: port,
 			}}
 			pSet[p] = struct{}{}
 		}
@@ -73,6 +73,7 @@ func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *cli
 	response, err := dockerClient.ContainerCreate(ctx, &container.Config{
 		Image:        imageName,
 		ExposedPorts: pSet,
+		Cmd:          commands,
 	}, &container.HostConfig{
 		NetworkMode:  networkMode,
 		PortBindings: pMap,

@@ -10,7 +10,7 @@ type EazyYml struct {
 	Releases    []string
 	Image       string
 	Deployment  struct {
-		Ports  []int
+		Ports  []string
 		Health []string
 	}
 	Integration struct {

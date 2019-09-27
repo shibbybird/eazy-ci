@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"log"
+
 	"github.com/shibbybird/eazy-ci/lib/models"
 )
 
@@ -27,8 +29,10 @@ func GetDependencies(in models.EazyYml, out *[]models.EazyYml, sshKeyPath string
 
 func GetPeerDependencies(in models.EazyYml, out *[]models.EazyYml, peers map[string]bool, sshKeyPath string) error {
 	for _, d := range in.Integration.PeerDependencies {
+		log.Println(d)
 		data, err := GetEazyYmlFromRepository(d, sshKeyPath)
 		if err != nil {
+			log.Println(err)
 			return err
 		}
 		eazy, err := models.EazyYmlUnmarshal(data)

@@ -25,7 +25,7 @@ func TestEazyYml(t *testing.T) {
 		eazy.Deployment.Health[0] != "/bin/sh" ||
 		eazy.Deployment.Health[1] != "-c" ||
 		eazy.Deployment.Health[2] != "while ! curl http://host.docker.internal:8080/health; do sleep 1; done;" ||
-		eazy.Deployment.Ports[0] != 9000 ||
+		eazy.Deployment.Ports[0] != "9000" ||
 		eazy.Integration.Bootstrap[0] != "/bin/sh" ||
 		eazy.Integration.Bootstrap[1] != "-c" ||
 		eazy.Integration.Bootstrap[2] != "liquibase" ||
