@@ -32,7 +32,7 @@ func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, commands 
 
 	io.Copy(os.Stdout, reader)
 
-	containerID, err := createContainer(ctx, eazy, dockerClient, commands, isHostMode, exposePorts, imageOverride)
+	containerID, err := createContainer(ctx, eazy, dockerClient, commands, isHostMode, exposePorts, imageOverride, nil)
 	if err != nil {
 		return containerID, err
 	}
@@ -43,7 +43,7 @@ func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, commands 
 
 }
 
-func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *client.Client, commands []string, isHostMode bool, exposePorts bool, imageOverride string) (string, error) {
+func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *client.Client, commands []string, isHostMode bool, exposePorts bool, imageOverride string, environmentArr []string) (string, error) {
 	imageName := models.GetLatestImageName(eazy)
 
 	if len(imageOverride) > 0 {
@@ -73,6 +73,7 @@ func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *cli
 	response, err := dockerClient.ContainerCreate(ctx, &container.Config{
 		Image:        imageName,
 		ExposedPorts: pSet,
+		Env:          environmentArr,
 		Cmd:          commands,
 	}, &container.HostConfig{
 		NetworkMode:  networkMode,
@@ -118,10 +119,10 @@ func startContainer(ctx context.Context, containerID string, dockerClient *clien
 	return err
 }
 
-func BuildAndRunContainer(ctx context.Context, projectDirectory string, eazy models.EazyYml, dockerfilePath string, commands []string, shouldBlock bool, isHostMode bool, exposePorts bool) (string, error) {
+func BuildAndRunContainer(ctx context.Context, environmentArr []string, eazy models.EazyYml, dockerfilePath string, commands []string, shouldBlock bool, isHostMode bool, exposePorts bool) (string, error) {
 
 	dockerClient, err := client.NewClientWithOpts(client.WithVersion("1.40"))
-	tar, err := archive.TarWithOptions(projectDirectory, &archive.TarOptions{})
+	tar, err := archive.TarWithOptions("./", &archive.TarOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -161,7 +162,7 @@ func BuildAndRunContainer(ctx context.Context, projectDirectory string, eazy mod
 		return "", err
 	}
 
-	containerID, err := createContainer(ctx, eazy, dockerClient, commands, isHostMode, exposePorts, imageID)
+	containerID, err := createContainer(ctx, eazy, dockerClient, commands, isHostMode, exposePorts, imageID, environmentArr)
 	if err != nil {
 		return containerID, err
 	}

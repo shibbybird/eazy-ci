@@ -18,6 +18,18 @@ import (
 
 var liveContainerIDs = []string{}
 
+// Code for array of environment variables
+type arrayFlags []string
+func (i *arrayFlags) String() string {
+	return "env variables"
+}
+func (i *arrayFlags) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+var envArray arrayFlags
+// end of code for environment variables
+
 func main() {
 	ctx := context.Background()
 
@@ -30,6 +42,7 @@ func main() {
 	}()
 
 	filePath := flag.String("f", "./eazy.yml", "The Eazy CI file ")
+	flag.Var(&envArray, "e", "Repeat for multiple Environment Variables")
 	isDev := flag.Bool("d", false, "Run dependencies and peer depedencies")
 	isIntegration := flag.Bool("i", false, "Run dependencies, peer dependencies, and build/start Dockerfile")
 	isHostMode := flag.Bool("h", false, "Sets docker to host mode")
@@ -104,7 +117,7 @@ func main() {
 	}
 
 	if len(yml.Integration.Bootstrap) > 0 {
-		containerID, err := utils.BuildAndRunContainer(ctx, "", yml, "Integration.Dockerfile", yml.Integration.Bootstrap, true, *isHostMode, false)
+		containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Integration.Dockerfile", yml.Integration.Bootstrap, true, *isHostMode, false)
 		if len(containerID) > 0 {
 			liveContainerIDs = append(liveContainerIDs, containerID)
 		}
@@ -114,7 +127,7 @@ func main() {
 	}
 
 	if !*isDev {
-		containerID, err := utils.BuildAndRunContainer(ctx, "", yml, "Dockerfile", []string{}, false, *isHostMode, true)
+		containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Dockerfile", []string{}, false, *isHostMode, true)
 		if len(containerID) > 0 {
 			liveContainerIDs = append(liveContainerIDs, containerID)
 		}
@@ -123,7 +136,7 @@ func main() {
 		}
 
 		if len(yml.Deployment.Health) > 0 {
-			containerID, err := utils.BuildAndRunContainer(ctx, "", yml, "Integration.Dockerfile", yml.Integration.Bootstrap, true, *isHostMode, false)
+			containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Integration.Dockerfile", yml.Integration.Bootstrap, true, *isHostMode, false)
 			if len(containerID) > 0 {
 				liveContainerIDs = append(liveContainerIDs, containerID)
 			}
@@ -138,7 +151,7 @@ func main() {
 		go forever()
 		select {}
 	} else {
-		containerID, err := utils.BuildAndRunContainer(ctx, "", yml, "Integration.Dockerfile", yml.Integration.RunTest, true, *isHostMode, false)
+		containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Integration.Dockerfile", yml.Integration.RunTest, true, *isHostMode, false)
 		if len(containerID) > 0 {
 			liveContainerIDs = append(liveContainerIDs, containerID)
 		}
