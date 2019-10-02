@@ -2,6 +2,17 @@
 
 
 [[projects]]
+  branch = "master"
+  digest = "1:6da51e5ec493ad2b44cb04129e2d0a068c8fb9bd6cb5739d199573558696bb94"
+  name = "github.com/Azure/go-ansiterm"
+  packages = [
+    ".",
+    "winterm",
+  ]
+  pruneopts = "UT"
+  revision = "d6e3b3328b783f23731bc4d058875b0371ff8109"
+
+[[projects]]
   digest = "1:d5e752c67b445baa5b6cb6f8aa706775c2aa8e41aca95a0c651520ff2c80361a"
   name = "github.com/Microsoft/go-winio"
   packages = [
@@ -54,7 +65,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2421cb43763eda6dc81d293a84172e145b800cd0832bab7d725915bd9d50973c"
+  digest = "1:6b507c22a8ba8801a3533f78317a10c79710d97191a7a0bf4737c4d4ec0743f4"
   name = "github.com/docker/docker"
   packages = [
     "api",
@@ -82,7 +93,10 @@
     "pkg/longpath",
     "pkg/mount",
     "pkg/pools",
+    "pkg/stdcopy",
     "pkg/system",
+    "pkg/term",
+    "pkg/term/windows",
   ]
   pruneopts = "UT"
   revision = "9adc7bb379a1c310b167c1c60e74b63713d381a9"
@@ -420,6 +434,8 @@
     "github.com/docker/docker/api/types/network",
     "github.com/docker/docker/client",
     "github.com/docker/docker/pkg/archive",
+    "github.com/docker/docker/pkg/stdcopy",
+    "github.com/docker/docker/pkg/term",
     "github.com/docker/go-connections/nat",
     "golang.org/x/crypto/ssh",
     "gopkg.in/src-d/go-git.v4",

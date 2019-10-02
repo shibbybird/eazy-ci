@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/term"
 	"github.com/docker/go-connections/nat"
 	"github.com/shibbybird/eazy-ci/lib/models"
 )
@@ -32,18 +34,18 @@ func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, commands 
 
 	io.Copy(os.Stdout, reader)
 
-	containerID, err := createContainer(ctx, eazy, dockerClient, commands, isHostMode, exposePorts, imageOverride, nil)
+	containerID, err := createContainer(ctx, eazy, dockerClient, commands, isHostMode, exposePorts, imageOverride, nil, false)
 	if err != nil {
 		return containerID, err
 	}
 
-	err = startContainer(ctx, containerID, dockerClient, shouldBlock)
+	err = startContainer(ctx, containerID, dockerClient, shouldBlock, false)
 
 	return containerID, err
 
 }
 
-func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *client.Client, commands []string, isHostMode bool, exposePorts bool, imageOverride string, environmentArr []string) (string, error) {
+func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *client.Client, commands []string, isHostMode bool, exposePorts bool, imageOverride string, environmentArr []string, attach bool) (string, error) {
 	imageName := models.GetLatestImageName(eazy)
 
 	if len(imageOverride) > 0 {
@@ -75,6 +77,11 @@ func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *cli
 		ExposedPorts: pSet,
 		Env:          environmentArr,
 		Cmd:          commands,
+		Tty:          attach,
+		AttachStdin:  attach,
+		AttachStdout: attach,
+		AttachStderr: attach,
+		OpenStdin:    attach,
 	}, &container.HostConfig{
 		NetworkMode:  networkMode,
 		PortBindings: pMap,
@@ -87,9 +94,72 @@ func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *cli
 	return response.ID, nil
 }
 
-func startContainer(ctx context.Context, containerID string, dockerClient *client.Client, shouldBlock bool) error {
-	err := dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
+func hijackConnection(ctx context.Context, resp types.HijackedResponse) error {
+	output := make(chan error)
+	input := make(chan struct{})
+	inErrCh := make(chan error)
 
+	go func() {
+		_, err := io.Copy(resp.Conn, os.Stdin)
+		if _, ok := err.(term.EscapeError); ok {
+			inErrCh <- err
+		}
+		close(input)
+	}()
+
+	go func() {
+		_, err := io.Copy(os.Stdout, resp.Reader)
+		output <- err
+	}()
+
+	select {
+	case err := <-inErrCh:
+		return err
+	case <-input:
+		select {
+		case err := <-output:
+			return err
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		return nil
+	case err := <-inErrCh:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	return nil
+}
+
+func startContainer(ctx context.Context, containerID string, dockerClient *client.Client, shouldBlock bool, attach bool) error {
+
+	if attach {
+		resp, err := dockerClient.ContainerAttach(ctx, containerID, types.ContainerAttachOptions{
+			Stream: true,
+			Stdin:  attach,
+			Stdout: attach,
+			Stderr: attach,
+		})
+
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
+		defer resp.Close()
+
+		errCh := make(chan error, 1)
+
+		go func() {
+			defer close(errCh)
+			errCh <- func() error {
+				return hijackConnection(ctx, resp)
+			}()
+		}()
+	}
+
+	err := dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
 	if err != nil {
 		return err
 	}
@@ -104,7 +174,10 @@ func startContainer(ctx context.Context, containerID string, dockerClient *clien
 		case out := <-chn:
 			statusCode := int(out.StatusCode)
 			if statusCode > 0 {
-				err = errors.New("Error Starting Container - Status Code: " + string(statusCode))
+				err := errors.New("Error Starting Container - Status Code: " + string(statusCode))
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -116,10 +189,10 @@ func startContainer(ctx context.Context, containerID string, dockerClient *clien
 		io.Copy(os.Stdout, out)
 	}
 
-	return err
+	return nil
 }
 
-func BuildAndRunContainer(ctx context.Context, environmentArr []string, eazy models.EazyYml, dockerfilePath string, commands []string, shouldBlock bool, isHostMode bool, exposePorts bool) (string, error) {
+func BuildAndRunContainer(ctx context.Context, environmentArr []string, eazy models.EazyYml, dockerfilePath string, commands []string, shouldBlock bool, isHostMode bool, exposePorts bool, attach bool) (string, error) {
 
 	dockerClient, err := client.NewClientWithOpts(client.WithVersion("1.40"))
 	tar, err := archive.TarWithOptions("./", &archive.TarOptions{})
@@ -162,12 +235,12 @@ func BuildAndRunContainer(ctx context.Context, environmentArr []string, eazy mod
 		return "", err
 	}
 
-	containerID, err := createContainer(ctx, eazy, dockerClient, commands, isHostMode, exposePorts, imageID, environmentArr)
+	containerID, err := createContainer(ctx, eazy, dockerClient, commands, isHostMode, exposePorts, imageID, environmentArr, attach)
 	if err != nil {
 		return containerID, err
 	}
 
-	err = startContainer(ctx, containerID, dockerClient, shouldBlock)
+	err = startContainer(ctx, containerID, dockerClient, shouldBlock, attach)
 
 	return containerID, err
 

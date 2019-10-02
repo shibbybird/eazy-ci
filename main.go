@@ -20,6 +20,7 @@ var liveContainerIDs = []string{}
 
 // Code for array of environment variables
 type arrayFlags []string
+
 func (i *arrayFlags) String() string {
 	return "env variables"
 }
@@ -27,7 +28,9 @@ func (i *arrayFlags) Set(value string) error {
 	*i = append(*i, value)
 	return nil
 }
+
 var envArray arrayFlags
+
 // end of code for environment variables
 
 func main() {
@@ -117,7 +120,7 @@ func main() {
 	}
 
 	if len(yml.Integration.Bootstrap) > 0 {
-		containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Integration.Dockerfile", yml.Integration.Bootstrap, true, *isHostMode, false)
+		containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Integration.Dockerfile", yml.Integration.Bootstrap, true, *isHostMode, false, false)
 		if len(containerID) > 0 {
 			liveContainerIDs = append(liveContainerIDs, containerID)
 		}
@@ -127,7 +130,7 @@ func main() {
 	}
 
 	if !*isDev {
-		containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Dockerfile", []string{}, false, *isHostMode, true)
+		containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Dockerfile", []string{}, false, *isHostMode, true, false)
 		if len(containerID) > 0 {
 			liveContainerIDs = append(liveContainerIDs, containerID)
 		}
@@ -136,7 +139,7 @@ func main() {
 		}
 
 		if len(yml.Deployment.Health) > 0 {
-			containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Integration.Dockerfile", yml.Integration.Bootstrap, true, *isHostMode, false)
+			containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Integration.Dockerfile", yml.Deployment.Health, true, *isHostMode, false, true)
 			if len(containerID) > 0 {
 				liveContainerIDs = append(liveContainerIDs, containerID)
 			}
@@ -151,7 +154,7 @@ func main() {
 		go forever()
 		select {}
 	} else {
-		containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Integration.Dockerfile", yml.Integration.RunTest, true, *isHostMode, false)
+		containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Integration.Dockerfile", yml.Integration.RunTest, true, *isHostMode, false, false)
 		if len(containerID) > 0 {
 			liveContainerIDs = append(liveContainerIDs, containerID)
 		}
