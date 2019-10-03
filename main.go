@@ -17,6 +17,7 @@ import (
 )
 
 var liveContainerIDs = []string{}
+var routableLinks = []string{}
 
 // Code for array of environment variables
 type arrayFlags []string
@@ -109,8 +110,6 @@ func main() {
 		}
 	}
 
-	log.Println(peerDependencies)
-
 	for _, d := range peerDependencies {
 		startUnit(ctx, d, *isHostMode)
 	}
@@ -120,29 +119,48 @@ func main() {
 	}
 
 	if len(yml.Integration.Bootstrap) > 0 {
-		containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Integration.Dockerfile", yml.Integration.Bootstrap, true, *isHostMode, false, false)
-		if len(containerID) > 0 {
-			liveContainerIDs = append(liveContainerIDs, containerID)
-		}
+		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
+			Env:           envArray,
+			Dockerfile:    "Integration.Dockerfile",
+			Command:       yml.Integration.Bootstrap,
+			Wait:          true,
+			IsHostNetwork: *isHostMode,
+			ExposePorts:   false,
+			Attach:        false,
+		}, &routableLinks, &liveContainerIDs)
+
 		if err != nil {
 			fail(ctx, err)
 		}
 	}
 
 	if !*isDev {
-		containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Dockerfile", []string{}, false, *isHostMode, true, false)
-		if len(containerID) > 0 {
-			liveContainerIDs = append(liveContainerIDs, containerID)
-		}
+		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
+			Env:           envArray,
+			Dockerfile:    "Dockerfile",
+			Command:       []string{},
+			Wait:          false,
+			IsHostNetwork: *isHostMode,
+			ExposePorts:   true,
+			Attach:        false,
+			IsRootImage:   true,
+		}, &routableLinks, &liveContainerIDs)
+
 		if err != nil {
 			fail(ctx, err)
 		}
 
 		if len(yml.Deployment.Health) > 0 {
-			containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Integration.Dockerfile", yml.Deployment.Health, true, *isHostMode, false, true)
-			if len(containerID) > 0 {
-				liveContainerIDs = append(liveContainerIDs, containerID)
-			}
+			_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
+				Env:           envArray,
+				Dockerfile:    "Integration.Dockerfile",
+				Command:       yml.Deployment.Health,
+				Wait:          true,
+				IsHostNetwork: *isHostMode,
+				ExposePorts:   false,
+				Attach:        false,
+			}, &routableLinks, &liveContainerIDs)
+
 			if err != nil {
 				fail(ctx, err)
 			}
@@ -150,14 +168,35 @@ func main() {
 	}
 
 	if *isDev || *isIntegration {
-		log.Println("You are running in a Development Mode. Use ctrl-c to exit at anytime.")
-		go forever()
-		select {}
-	} else {
-		containerID, err := utils.BuildAndRunContainer(ctx, envArray, yml, "Integration.Dockerfile", yml.Integration.RunTest, true, *isHostMode, false, false)
-		if len(containerID) > 0 {
-			liveContainerIDs = append(liveContainerIDs, containerID)
+		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
+			Env:           envArray,
+			Dockerfile:    "Integration.Dockerfile",
+			Command:       []string{"/bin/bash"},
+			Wait:          true,
+			IsHostNetwork: *isHostMode,
+			ExposePorts:   false,
+			Attach:        true,
+		}, &routableLinks, &liveContainerIDs)
+
+		if err != nil {
+			fail(ctx, err)
 		}
+		/*
+			log.Println("You are running in a Development Mode. Use ctrl-c to exit at anytime.")
+			go forever()
+			select {}
+		*/
+	} else {
+		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
+			Env:           envArray,
+			Dockerfile:    "Integration.Dockerfile",
+			Command:       yml.Integration.RunTest,
+			Wait:          true,
+			IsHostNetwork: *isHostMode,
+			ExposePorts:   false,
+			Attach:        false,
+		}, &routableLinks, &liveContainerIDs)
+
 		if err != nil {
 			fail(ctx, err)
 		}
@@ -169,24 +208,34 @@ func main() {
 
 func startUnit(ctx context.Context, yml models.EazyYml, isHostMode bool) {
 	if len(yml.Integration.Bootstrap) > 0 {
-		containerID, err := utils.StartContainerByEazyYml(ctx, yml, yml.Integration.Bootstrap, true, isHostMode, false, models.GetLatestIntegrationImageName(yml))
-		if len(containerID) > 0 {
-			liveContainerIDs = append(liveContainerIDs, containerID)
-		}
+		// func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, commands []string, shouldBlock bool, isHostMode bool, exposePorts bool, imageOverride string) (string, error) {
+		_, err := utils.StartContainerByEazyYml(ctx, yml, models.GetLatestIntegrationImageName(yml), models.DockerConfig{
+			Command:       yml.Integration.Bootstrap,
+			Wait:          true,
+			IsHostNetwork: isHostMode,
+			ExposePorts:   false,
+		}, &routableLinks, &liveContainerIDs)
+
 		if err != nil {
 			fail(ctx, err)
 		}
 	}
-	containerID, err := utils.StartContainerByEazyYml(ctx, yml, yml.Integration.Bootstrap, false, isHostMode, true, "")
+	_, err := utils.StartContainerByEazyYml(ctx, yml, "", models.DockerConfig{
+		Wait:          false,
+		IsHostNetwork: isHostMode,
+		ExposePorts:   true,
+		IsRootImage:   true,
+	}, &routableLinks, &liveContainerIDs)
 	if err != nil {
 		fail(ctx, err)
 	}
-	liveContainerIDs = append(liveContainerIDs, containerID)
 	if len(yml.Deployment.Health) > 0 {
-		containerID, err := utils.StartContainerByEazyYml(ctx, yml, yml.Deployment.Health, true, isHostMode, false, models.GetLatestIntegrationImageName(yml))
-		if len(containerID) > 0 {
-			liveContainerIDs = append(liveContainerIDs, containerID)
-		}
+		_, err := utils.StartContainerByEazyYml(ctx, yml, models.GetLatestIntegrationImageName(yml), models.DockerConfig{
+			Command:       yml.Deployment.Health,
+			Wait:          true,
+			IsHostNetwork: isHostMode,
+			ExposePorts:   false,
+		}, &routableLinks, &liveContainerIDs)
 		if err != nil {
 			fail(ctx, err)
 		}

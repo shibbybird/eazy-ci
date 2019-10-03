@@ -34,7 +34,8 @@ func TestEazyYml(t *testing.T) {
 		eazy.Integration.RunTest[2] != "npm test" ||
 		eazy.Integration.Dependencies[0] != "github.com/shibbybird/test-api" ||
 		eazy.Integration.Dependencies[1] != "github.com/shibbybird/test-service" ||
-		eazy.Integration.PeerDependencies[0] != "github.com/shibbybird/cassandra-db" {
+		eazy.Integration.PeerDependencies[0] != "github.com/shibbybird/cassandra-db" ||
+		eazy.Name != "test-service" {
 		t.Error(eazy)
 	}
 

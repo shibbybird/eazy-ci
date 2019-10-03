@@ -6,6 +6,7 @@ import (
 
 // EazyYml stuct for eazy.yml file in the repo's
 type EazyYml struct {
+	Name        string
 	EazyVersion string `yaml:"eazyVersion"`
 	Releases    []string
 	Image       string

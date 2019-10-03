@@ -20,7 +20,7 @@ import (
 	"github.com/shibbybird/eazy-ci/lib/models"
 )
 
-func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, commands []string, shouldBlock bool, isHostMode bool, exposePorts bool, imageOverride string) (string, error) {
+func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, imageOverride string, cfg models.DockerConfig, routableLinks *[]string, liveContainers *[]string) (string, error) {
 
 	dockerClient, err := client.NewClientWithOpts(client.WithVersion("1.40"))
 	if err != nil {
@@ -34,18 +34,24 @@ func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, commands 
 
 	io.Copy(os.Stdout, reader)
 
-	containerID, err := createContainer(ctx, eazy, dockerClient, commands, isHostMode, exposePorts, imageOverride, nil, false)
+	containerID, err := createContainer(ctx, eazy, dockerClient, imageOverride, cfg, *routableLinks)
 	if err != nil {
 		return containerID, err
 	}
+	*liveContainers = append(*liveContainers, containerID)
 
-	err = startContainer(ctx, containerID, dockerClient, shouldBlock, false)
+	err = startContainer(ctx, containerID, dockerClient, cfg)
+	if err == nil {
+		if cfg.IsRootImage {
+			*routableLinks = append(*routableLinks, (containerID + ":" + eazy.Name))
+		}
+	}
 
 	return containerID, err
 
 }
 
-func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *client.Client, commands []string, isHostMode bool, exposePorts bool, imageOverride string, environmentArr []string, attach bool) (string, error) {
+func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *client.Client, imageOverride string, cfg models.DockerConfig, routableLinks []string) (string, error) {
 	imageName := models.GetLatestImageName(eazy)
 
 	if len(imageOverride) > 0 {
@@ -54,7 +60,7 @@ func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *cli
 
 	pMap := nat.PortMap{}
 	pSet := nat.PortSet{}
-	if exposePorts {
+	if cfg.ExposePorts {
 		for _, port := range eazy.Deployment.Ports {
 			p := nat.Port(port + "/tcp")
 			pMap[p] = []nat.PortBinding{{
@@ -66,25 +72,44 @@ func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *cli
 
 	var networkMode container.NetworkMode
 
-	if isHostMode {
+	if cfg.IsHostNetwork {
 		networkMode = "host"
 	} else {
 		networkMode = ""
 	}
 
+	shouldOpenStdin := false
+	if cfg.Attach {
+		shouldOpenStdin = true
+	}
+
+	attach := cfg.Attach
+	if cfg.Wait {
+		attach = true
+	}
+
+	hostName := ""
+
+	if cfg.IsRootImage {
+		hostName = eazy.Name
+	}
+
 	response, err := dockerClient.ContainerCreate(ctx, &container.Config{
+		Hostname:     hostName,
+		Domainname:   hostName,
 		Image:        imageName,
 		ExposedPorts: pSet,
-		Env:          environmentArr,
-		Cmd:          commands,
+		Env:          cfg.Env,
+		Cmd:          cfg.Command,
 		Tty:          attach,
 		AttachStdin:  attach,
 		AttachStdout: attach,
 		AttachStderr: attach,
-		OpenStdin:    attach,
+		OpenStdin:    shouldOpenStdin,
 	}, &container.HostConfig{
 		NetworkMode:  networkMode,
 		PortBindings: pMap,
+		Links:        routableLinks,
 	}, &network.NetworkingConfig{}, "")
 
 	if err != nil {
@@ -122,24 +147,21 @@ func hijackConnection(ctx context.Context, resp types.HijackedResponse) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-		return nil
 	case err := <-inErrCh:
 		return err
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-
-	return nil
 }
 
-func startContainer(ctx context.Context, containerID string, dockerClient *client.Client, shouldBlock bool, attach bool) error {
+func startContainer(ctx context.Context, containerID string, dockerClient *client.Client, cfg models.DockerConfig) error {
 
-	if attach {
+	if cfg.Attach {
 		resp, err := dockerClient.ContainerAttach(ctx, containerID, types.ContainerAttachOptions{
 			Stream: true,
-			Stdin:  attach,
-			Stdout: attach,
-			Stderr: attach,
+			Stdin:  true,
+			Stdout: true,
+			Stderr: true,
 		})
 
 		if err != nil {
@@ -164,7 +186,7 @@ func startContainer(ctx context.Context, containerID string, dockerClient *clien
 		return err
 	}
 
-	if shouldBlock {
+	if cfg.Wait {
 		chn, errCh := dockerClient.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
 		select {
 		case err := <-errCh:
@@ -192,7 +214,7 @@ func startContainer(ctx context.Context, containerID string, dockerClient *clien
 	return nil
 }
 
-func BuildAndRunContainer(ctx context.Context, environmentArr []string, eazy models.EazyYml, dockerfilePath string, commands []string, shouldBlock bool, isHostMode bool, exposePorts bool, attach bool) (string, error) {
+func BuildAndRunContainer(ctx context.Context, eazy models.EazyYml, cfg models.DockerConfig, routableLinks *[]string, liveContainers *[]string) (string, error) {
 
 	dockerClient, err := client.NewClientWithOpts(client.WithVersion("1.40"))
 	tar, err := archive.TarWithOptions("./", &archive.TarOptions{})
@@ -203,7 +225,7 @@ func BuildAndRunContainer(ctx context.Context, environmentArr []string, eazy mod
 	defer tar.Close()
 
 	opt := types.ImageBuildOptions{
-		Dockerfile: dockerfilePath,
+		Dockerfile: cfg.Dockerfile,
 	}
 
 	resp, err := dockerClient.ImageBuild(ctx, tar, opt)
@@ -235,12 +257,19 @@ func BuildAndRunContainer(ctx context.Context, environmentArr []string, eazy mod
 		return "", err
 	}
 
-	containerID, err := createContainer(ctx, eazy, dockerClient, commands, isHostMode, exposePorts, imageID, environmentArr, attach)
+	containerID, err := createContainer(ctx, eazy, dockerClient, imageID, cfg, *routableLinks)
 	if err != nil {
 		return containerID, err
 	}
 
-	err = startContainer(ctx, containerID, dockerClient, shouldBlock, attach)
+	*liveContainers = append(*liveContainers, containerID)
+
+	err = startContainer(ctx, containerID, dockerClient, cfg)
+	if err == nil {
+		if cfg.IsRootImage {
+			*routableLinks = append(*routableLinks, (containerID + ":" + eazy.Name))
+		}
+	}
 
 	return containerID, err
 

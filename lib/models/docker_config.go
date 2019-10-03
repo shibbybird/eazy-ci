@@ -1,17 +1,13 @@
 package models
 
+// DockerConfig meant for docker util commands
 type DockerConfig struct {
-	EazyVersion string
-	Releases    []string
-	Image       string
-	Deployment  struct {
-		Ports  []string
-		Health []string
-	}
-	Integration struct {
-		Bootstrap        []string
-		RunTest          []string
-		Dependencies     []string
-		PeerDependencies []string
-	}
+	Env           []string
+	Dockerfile    string
+	Command       []string
+	Wait          bool
+	IsHostNetwork bool
+	ExposePorts   bool
+	Attach        bool
+	IsRootImage   bool
 }

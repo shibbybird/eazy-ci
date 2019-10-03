@@ -65,7 +65,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6b507c22a8ba8801a3533f78317a10c79710d97191a7a0bf4737c4d4ec0743f4"
+  digest = "1:37bf5203e5c278550a1926db21fe165f671114b62db34c4723e004f71963f782"
   name = "github.com/docker/docker"
   packages = [
     "api",
@@ -93,7 +93,6 @@
     "pkg/longpath",
     "pkg/mount",
     "pkg/pools",
-    "pkg/stdcopy",
     "pkg/system",
     "pkg/term",
     "pkg/term/windows",
@@ -434,7 +433,6 @@
     "github.com/docker/docker/api/types/network",
     "github.com/docker/docker/client",
     "github.com/docker/docker/pkg/archive",
-    "github.com/docker/docker/pkg/stdcopy",
     "github.com/docker/docker/pkg/term",
     "github.com/docker/go-connections/nat",
     "golang.org/x/crypto/ssh",
