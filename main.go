@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/mount"
 	"github.com/shibbybird/eazy-ci/lib/utils"
 
 	"github.com/shibbybird/eazy-ci/lib/models"
@@ -168,7 +169,12 @@ func main() {
 	}
 
 	if *isDev || *isIntegration {
-		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
+		pwd, err := os.Getwd()
+		if err != nil {
+			fail(ctx, err)
+		}
+		log.Println(pwd)
+		_, err = utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
 			Env:           envArray,
 			Dockerfile:    "Integration.Dockerfile",
 			Command:       []string{"/bin/bash"},
@@ -176,16 +182,21 @@ func main() {
 			IsHostNetwork: *isHostMode,
 			ExposePorts:   false,
 			Attach:        true,
+			WorkingDir:    "/build",
+			Mounts: []mount.Mount{
+				mount.Mount{
+					Source:      pwd,
+					Target:      "/build",
+					Type:        mount.TypeBind,
+					ReadOnly:    false,
+					Consistency: mount.ConsistencyFull,
+				},
+			},
 		}, &routableLinks, &liveContainerIDs)
 
 		if err != nil {
 			fail(ctx, err)
 		}
-		/*
-			log.Println("You are running in a Development Mode. Use ctrl-c to exit at anytime.")
-			go forever()
-			select {}
-		*/
 	} else {
 		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
 			Env:           envArray,
@@ -208,7 +219,6 @@ func main() {
 
 func startUnit(ctx context.Context, yml models.EazyYml, isHostMode bool) {
 	if len(yml.Integration.Bootstrap) > 0 {
-		// func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, commands []string, shouldBlock bool, isHostMode bool, exposePorts bool, imageOverride string) (string, error) {
 		_, err := utils.StartContainerByEazyYml(ctx, yml, models.GetLatestIntegrationImageName(yml), models.DockerConfig{
 			Command:       yml.Integration.Bootstrap,
 			Wait:          true,

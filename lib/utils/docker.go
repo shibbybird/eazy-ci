@@ -106,7 +106,9 @@ func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *cli
 		AttachStdout: attach,
 		AttachStderr: attach,
 		OpenStdin:    shouldOpenStdin,
+		WorkingDir:   cfg.WorkingDir,
 	}, &container.HostConfig{
+		Mounts:       cfg.Mounts,
 		NetworkMode:  networkMode,
 		PortBindings: pMap,
 		Links:        routableLinks,
