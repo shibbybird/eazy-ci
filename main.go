@@ -9,9 +9,9 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/pkg/term"
 	"github.com/shibbybird/eazy-ci/lib/utils"
 
 	"github.com/shibbybird/eazy-ci/lib/models"
@@ -33,10 +33,14 @@ func (i *arrayFlags) Set(value string) error {
 
 var envArray arrayFlags
 
+var oldStateOut *term.State = nil
+
 // end of code for environment variables
 
 func main() {
 	ctx := context.Background()
+
+	oldStateOut, _ = term.SetRawTerminalOutput(os.Stdout.Fd())
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -173,7 +177,7 @@ func main() {
 		if err != nil {
 			fail(ctx, err)
 		}
-		log.Println(pwd)
+
 		_, err = utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
 			Env:           envArray,
 			Dockerfile:    "Integration.Dockerfile",
@@ -262,6 +266,7 @@ func fail(ctx context.Context, err error) {
 
 func cleanUp(ctx context.Context, exitCode int, err error) {
 	log.Println("Do Clean Up!")
+	term.RestoreTerminal(os.Stdout.Fd(), oldStateOut)
 	for _, id := range liveContainerIDs {
 		err := utils.KillContainer(ctx, id)
 		if err != nil {
@@ -270,10 +275,4 @@ func cleanUp(ctx context.Context, exitCode int, err error) {
 	}
 	log.Println(err)
 	os.Exit(exitCode)
-}
-
-func forever() {
-	for {
-		time.Sleep(time.Second)
-	}
 }

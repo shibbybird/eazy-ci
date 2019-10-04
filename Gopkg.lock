@@ -65,7 +65,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:37bf5203e5c278550a1926db21fe165f671114b62db34c4723e004f71963f782"
+  digest = "1:6068df0c8798754af0532e2247445e2881d4dd7f01182b6f2b2f048ca509ab17"
   name = "github.com/docker/docker"
   packages = [
     "api",
@@ -90,6 +90,7 @@
     "pkg/fileutils",
     "pkg/idtools",
     "pkg/ioutils",
+    "pkg/jsonmessage",
     "pkg/longpath",
     "pkg/mount",
     "pkg/pools",
@@ -189,6 +190,14 @@
   pruneopts = "UT"
   revision = "af06845cf3004701891bf4fdb884bfe4920b3727"
   version = "v1.1.0"
+
+[[projects]]
+  digest = "1:906eb1ca3c8455e447b99a45237b2b9615b665608fd07ad12cce847dd9a1ec43"
+  name = "github.com/morikuni/aec"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "39771216ff4c63d11f5e604076f9c45e8be1067b"
+  version = "v1.0.0"
 
 [[projects]]
   digest = "1:ee4d4af67d93cc7644157882329023ce9a7bcfce956a079069a9405521c7cc8d"
@@ -430,9 +439,11 @@
   input-imports = [
     "github.com/docker/docker/api/types",
     "github.com/docker/docker/api/types/container",
+    "github.com/docker/docker/api/types/mount",
     "github.com/docker/docker/api/types/network",
     "github.com/docker/docker/client",
     "github.com/docker/docker/pkg/archive",
+    "github.com/docker/docker/pkg/jsonmessage",
     "github.com/docker/docker/pkg/term",
     "github.com/docker/go-connections/nat",
     "golang.org/x/crypto/ssh",

@@ -1,20 +1,19 @@
 package utils
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/go-connections/nat"
 	"github.com/shibbybird/eazy-ci/lib/models"
@@ -31,6 +30,15 @@ func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, imageOver
 	if err != nil {
 		return "", err
 	}
+
+	aux := func(msg jsonmessage.JSONMessage) {
+		var result types.Container
+		if err := json.Unmarshal(*msg.Aux, &result); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	jsonmessage.DisplayJSONMessagesStream(reader, os.Stdout, os.Stdout.Fd(), true, aux)
 
 	io.Copy(os.Stdout, reader)
 
@@ -121,26 +129,29 @@ func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *cli
 	return response.ID, nil
 }
 
-func hijackConnection(ctx context.Context, resp types.HijackedResponse) error {
+func hijackConnection(ctx context.Context, resp types.HijackedResponse, attached bool) error {
 	output := make(chan error)
 	input := make(chan struct{})
 	inErrCh := make(chan error)
 
-	go func() {
-		_, err := io.Copy(resp.Conn, os.Stdin)
-		if _, ok := err.(term.EscapeError); ok {
-			inErrCh <- err
-		}
-		close(input)
-	}()
-
+	if attached {
+		go func() {
+			_, err := io.Copy(resp.Conn, os.Stdin)
+			if _, ok := err.(term.EscapeError); ok {
+				inErrCh <- err
+			}
+			resp.CloseWrite()
+			close(input)
+		}()
+	}
 	go func() {
 		_, err := io.Copy(os.Stdout, resp.Reader)
+		resp.Close()
 		output <- err
 	}()
 
 	select {
-	case err := <-inErrCh:
+	case err := <-output:
 		return err
 	case <-input:
 		select {
@@ -157,11 +168,12 @@ func hijackConnection(ctx context.Context, resp types.HijackedResponse) error {
 }
 
 func startContainer(ctx context.Context, containerID string, dockerClient *client.Client, cfg models.DockerConfig) error {
+	var errResult error
 
-	if cfg.Attach {
+	if cfg.Attach || cfg.Wait {
 		resp, err := dockerClient.ContainerAttach(ctx, containerID, types.ContainerAttachOptions{
 			Stream: true,
-			Stdin:  true,
+			Stdin:  cfg.Attach,
 			Stdout: true,
 			Stderr: true,
 		})
@@ -171,16 +183,16 @@ func startContainer(ctx context.Context, containerID string, dockerClient *clien
 			return err
 		}
 
-		defer resp.Close()
-
 		errCh := make(chan error, 1)
 
 		go func() {
-			defer close(errCh)
 			errCh <- func() error {
-				return hijackConnection(ctx, resp)
+				return hijackConnection(ctx, resp, cfg.Attach)
 			}()
 		}()
+
+		defer resp.Close()
+		defer resp.CloseWrite()
 	}
 
 	err := dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
@@ -189,31 +201,27 @@ func startContainer(ctx context.Context, containerID string, dockerClient *clien
 	}
 
 	if cfg.Wait {
+
+		statusResult := make(chan int)
 		chn, errCh := dockerClient.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
-		select {
-		case err := <-errCh:
-			if err != nil {
-				return err
+		go func() {
+			select {
+			case <-errCh:
+				statusResult <- 7
+			case out := <-chn:
+				statusResult <- int(out.StatusCode)
 			}
-		case out := <-chn:
-			statusCode := int(out.StatusCode)
-			if statusCode > 0 {
-				err := errors.New("Error Starting Container - Status Code: " + string(statusCode))
-				if err != nil {
-					return err
-				}
-			}
+		}()
+
+		statusCode := <-statusResult
+
+		if statusCode > 0 {
+			errResult = errors.New("Error Starting Container - Status Code: " + string(statusCode))
 		}
 
-		out, _ := dockerClient.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
-			ShowStdout: true,
-			ShowStderr: true,
-		})
-
-		io.Copy(os.Stdout, out)
 	}
 
-	return nil
+	return errResult
 }
 
 func BuildAndRunContainer(ctx context.Context, eazy models.EazyYml, cfg models.DockerConfig, routableLinks *[]string, liveContainers *[]string) (string, error) {
@@ -235,23 +243,17 @@ func BuildAndRunContainer(ctx context.Context, eazy models.EazyYml, cfg models.D
 		return "", err
 	}
 
-	var buffer bytes.Buffer
-	tee := io.TeeReader(resp.Body, &buffer)
-
-	io.Copy(os.Stdout, tee)
-
-	respBytes, err := ioutil.ReadAll(&buffer)
-	if err != nil {
-		return "", err
+	imageID := ""
+	aux := func(msg jsonmessage.JSONMessage) {
+		var result types.BuildResult
+		if err := json.Unmarshal(*msg.Aux, &result); err != nil {
+			log.Fatal(err)
+		} else {
+			imageID = result.ID
+		}
 	}
 
-	responseStr := string(respBytes)
-	idx := strings.Index(responseStr, "Successfully built")
-
-	var imageID string
-	if idx > 0 {
-		imageID = responseStr[(idx + len("Successfully build") + 1):(idx + len("Successfully build") + 1 + 12)]
-	}
+	jsonmessage.DisplayJSONMessagesStream(resp.Body, os.Stdout, os.Stdout.Fd(), true, aux)
 
 	if err == nil {
 		resp.Body.Close()
@@ -266,11 +268,20 @@ func BuildAndRunContainer(ctx context.Context, eazy models.EazyYml, cfg models.D
 
 	*liveContainers = append(*liveContainers, containerID)
 
+	var oldStateIn *term.State
+	if cfg.Attach {
+		oldStateIn, _ = term.SetRawTerminal(os.Stdin.Fd())
+	}
+
 	err = startContainer(ctx, containerID, dockerClient, cfg)
 	if err == nil {
 		if cfg.IsRootImage {
 			*routableLinks = append(*routableLinks, (containerID + ":" + eazy.Name))
 		}
+	}
+
+	if cfg.Attach {
+		term.RestoreTerminal(os.Stdin.Fd(), oldStateIn)
 	}
 
 	return containerID, err
