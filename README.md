@@ -2,6 +2,7 @@
 
 eazy-ci is a free to use language agnostic tool for developing, building, and testing complex systems.
 
+
 ## Why another CI tool?
 
 Because the tools today are not complex enough and/or free for developing, building, and testing against complex microservice systems. Historically people have mocked or faked interactions with other systems, but with the advent of containers we can build better tested systems. Are integration tests slower? Of course they are, but are they more reliable, absolutely. With how powerful and cheap compute is these days we should all embrace integration tests... thus the advent of eazy-ci.
@@ -9,6 +10,23 @@ Because the tools today are not complex enough and/or free for developing, build
 ## Install
 
 Pull the appropriate binary from the releases page rename it "eazy" and put it on your path
+
+### Linux
+```
+wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.1/eazy_linux -O /home/$USER/bin/eazy && chmod +x /home/$USER/bin/eazy
+```
+
+### MacOS
+```
+wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.1/eazy_darwin -O /home/$USER/bin/eazy && chmod +x /home/$USER/bin/eazy
+```
+
+### Windows
+```
+# Not sure if this works?
+# Someone please confirm?
+wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.1/eazy_windows -O /home/$USER/bin/eazy.exe
+```
 
 ## Usage
 
