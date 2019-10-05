@@ -99,7 +99,7 @@
     "pkg/term/windows",
   ]
   pruneopts = "UT"
-  revision = "9adc7bb379a1c310b167c1c60e74b63713d381a9"
+  revision = "de5a67156b5eed287883958b60b0c08dacfc7332"
   source = "github.com/moby/moby"
 
 [[projects]]
@@ -276,7 +276,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:bec19726a4b9a15ba7f7f109b6294a4934e1e49ff6e9b4d509f46d20a5e1e34d"
+  digest = "1:6883a0d513c13b0b1014f829acdc53b61da0f01072bb79d5f80ef7bdf6c88681"
   name = "golang.org/x/crypto"
   packages = [
     "cast5",
@@ -297,7 +297,7 @@
     "ssh/knownhosts",
   ]
   pruneopts = "UT"
-  revision = "a832865fa7ada6126f4c6124ac49f71be71bff2a"
+  revision = "34f69633bfdcf9db92f698f8487115767eebef81"
 
 [[projects]]
   branch = "master"
@@ -309,7 +309,7 @@
     "proxy",
   ]
   pruneopts = "UT"
-  revision = "c5a3c61f89f3ed696ec36b629ef1b97541165225"
+  revision = "d98b1b4438230571bd7fbc5aaa89843e92937bd3"
 
 [[projects]]
   branch = "master"
@@ -321,7 +321,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:14f5ded65a63708325dc97d7a74e49439ad8f4c2493a7401a5535060ff061267"
+  digest = "1:ee08b0695903ecb3dbd5243d5e015650b9c3e77735a9c8974956a598751659a4"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
@@ -329,7 +329,7 @@
     "windows",
   ]
   pruneopts = "UT"
-  revision = "c990c680b611ac1aeb7d8f2af94a825f98d69720"
+  revision = "c178f38b412c7b426e4e97be2e75d11ff7b8d4d4"
 
 [[projects]]
   branch = "master"
@@ -337,7 +337,7 @@
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
   pruneopts = "UT"
-  revision = "20e1ac93f88cf06d2b1defb90b9e9e126c7dfff6"
+  revision = "c459b9ce5143dd819763d9329ff92a8e35e61bd9"
 
 [[projects]]
   digest = "1:dd9e017df31acd9cf78ad0df2c8a1132fb3f724ec9287240ee7306364130bafc"
@@ -426,12 +426,12 @@
   version = "v0.1.2"
 
 [[projects]]
-  digest = "1:1033856ca84153217fda9f527e1c02e11b636e28ad2ab19f2ea4a06e4abbe8e1"
+  digest = "1:59f10c1537d2199d9115d946927fe31165959a95190849c82ff11e05803528b0"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   pruneopts = "UT"
-  revision = "bb4e33bf68bf89cad44d386192cbed201f35b241"
-  version = "v2.2.3"
+  revision = "f221b8435cfb71e54062f6c6e99e9ade30b124d5"
+  version = "v2.2.4"
 
 [solve-meta]
   analyzer-name = "dep"
