@@ -35,7 +35,10 @@ func TestEazyYml(t *testing.T) {
 		eazy.Integration.Dependencies[0] != "github.com/shibbybird/test-api" ||
 		eazy.Integration.Dependencies[1] != "github.com/shibbybird/test-service" ||
 		eazy.Integration.PeerDependencies[0] != "github.com/shibbybird/cassandra-db" ||
-		eazy.Name != "test-service" {
+		eazy.Name != "test-service" ||
+		eazy.Build.Image != "gradle:5.6.2-jdk8" ||
+		eazy.Build.Command[2] != "gradle build" ||
+		eazy.Deployment.Env[0] != "APP_ENV=integration" {
 		t.Error(eazy)
 	}
 

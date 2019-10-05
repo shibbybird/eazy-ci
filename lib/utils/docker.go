@@ -26,7 +26,15 @@ func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, imageOver
 		return "", err
 	}
 
-	reader, err := dockerClient.ImagePull(ctx, models.GetLatestImageName(eazy), types.ImagePullOptions{})
+	var image string
+
+	if len(imageOverride) > 0 {
+		image = imageOverride
+	} else {
+		image = models.GetLatestImageName(eazy)
+	}
+
+	reader, err := dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -48,11 +56,20 @@ func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, imageOver
 	}
 	*liveContainers = append(*liveContainers, containerID)
 
+	var oldStateIn *term.State
+	if cfg.Attach {
+		oldStateIn, _ = term.SetRawTerminal(os.Stdin.Fd())
+	}
+
 	err = startContainer(ctx, containerID, dockerClient, cfg)
 	if err == nil {
 		if cfg.IsRootImage {
 			*routableLinks = append(*routableLinks, (containerID + ":" + eazy.Name))
 		}
+	}
+
+	if cfg.Attach {
+		term.RestoreTerminal(os.Stdin.Fd(), oldStateIn)
 	}
 
 	return containerID, err
@@ -78,14 +95,6 @@ func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *cli
 		}
 	}
 
-	var networkMode container.NetworkMode
-
-	if cfg.IsHostNetwork {
-		networkMode = "host"
-	} else {
-		networkMode = ""
-	}
-
 	shouldOpenStdin := false
 	if cfg.Attach {
 		shouldOpenStdin = true
@@ -103,6 +112,7 @@ func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *cli
 	}
 
 	response, err := dockerClient.ContainerCreate(ctx, &container.Config{
+		User:         cfg.User,
 		Hostname:     hostName,
 		Domainname:   hostName,
 		Image:        imageName,
@@ -117,7 +127,6 @@ func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *cli
 		WorkingDir:   cfg.WorkingDir,
 	}, &container.HostConfig{
 		Mounts:       cfg.Mounts,
-		NetworkMode:  networkMode,
 		PortBindings: pMap,
 		Links:        routableLinks,
 	}, &network.NetworkingConfig{}, "")

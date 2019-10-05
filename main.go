@@ -20,19 +20,6 @@ import (
 var liveContainerIDs = []string{}
 var routableLinks = []string{}
 
-// Code for array of environment variables
-type arrayFlags []string
-
-func (i *arrayFlags) String() string {
-	return "env variables"
-}
-func (i *arrayFlags) Set(value string) error {
-	*i = append(*i, value)
-	return nil
-}
-
-var envArray arrayFlags
-
 var oldStateOut *term.State = nil
 
 // end of code for environment variables
@@ -51,10 +38,8 @@ func main() {
 	}()
 
 	filePath := flag.String("f", "./eazy.yml", "The Eazy CI file ")
-	flag.Var(&envArray, "e", "Repeat for multiple Environment Variables")
 	isDev := flag.Bool("d", false, "Run dependencies and peer depedencies")
 	isIntegration := flag.Bool("i", false, "Run dependencies, peer dependencies, and build/start Dockerfile")
-	isHostMode := flag.Bool("h", false, "Sets docker to host mode")
 	pemKeyPath := flag.String("k", "", "File path for ssh private key for github access")
 
 	flag.Parse()
@@ -116,22 +101,20 @@ func main() {
 	}
 
 	for _, d := range peerDependencies {
-		startUnit(ctx, d, *isHostMode)
+		startUnit(ctx, d)
 	}
 
 	for _, d := range dependencies {
-		startUnit(ctx, d, *isHostMode)
+		startUnit(ctx, d)
 	}
 
 	if len(yml.Integration.Bootstrap) > 0 {
 		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
-			Env:           envArray,
-			Dockerfile:    "Integration.Dockerfile",
-			Command:       yml.Integration.Bootstrap,
-			Wait:          true,
-			IsHostNetwork: *isHostMode,
-			ExposePorts:   false,
-			Attach:        false,
+			Dockerfile:  "Integration.Dockerfile",
+			Command:     yml.Integration.Bootstrap,
+			Wait:        true,
+			ExposePorts: false,
+			Attach:      false,
 		}, &routableLinks, &liveContainerIDs)
 
 		if err != nil {
@@ -139,16 +122,45 @@ func main() {
 		}
 	}
 
+	pwd, err := os.Getwd()
+	if err != nil {
+		fail(ctx, err)
+	}
+
 	if !*isDev {
+
+		if len(yml.Build.Image) > 0 {
+			_, err := utils.StartContainerByEazyYml(ctx, yml, yml.Build.Image, models.DockerConfig{
+				User:        "root",
+				Command:     yml.Build.Command,
+				Wait:        true,
+				ExposePorts: false,
+				Attach:      false,
+				WorkingDir:  "/build",
+				Mounts: []mount.Mount{
+					mount.Mount{
+						Source:      pwd,
+						Target:      "/build",
+						Type:        mount.TypeBind,
+						ReadOnly:    false,
+						Consistency: mount.ConsistencyFull,
+					},
+				},
+			}, &routableLinks, &liveContainerIDs)
+
+			if err != nil {
+				fail(ctx, err)
+			}
+		}
+
 		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
-			Env:           envArray,
-			Dockerfile:    "Dockerfile",
-			Command:       []string{},
-			Wait:          false,
-			IsHostNetwork: *isHostMode,
-			ExposePorts:   true,
-			Attach:        false,
-			IsRootImage:   true,
+			Env:         yml.Deployment.Env,
+			Dockerfile:  "Dockerfile",
+			Command:     []string{},
+			Wait:        false,
+			ExposePorts: true,
+			Attach:      false,
+			IsRootImage: true,
 		}, &routableLinks, &liveContainerIDs)
 
 		if err != nil {
@@ -156,14 +168,13 @@ func main() {
 		}
 
 		if len(yml.Deployment.Health) > 0 {
+
 			_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
-				Env:           envArray,
-				Dockerfile:    "Integration.Dockerfile",
-				Command:       yml.Deployment.Health,
-				Wait:          true,
-				IsHostNetwork: *isHostMode,
-				ExposePorts:   false,
-				Attach:        false,
+				Dockerfile:  "Integration.Dockerfile",
+				Command:     yml.Deployment.Health,
+				Wait:        true,
+				ExposePorts: false,
+				Attach:      false,
 			}, &routableLinks, &liveContainerIDs)
 
 			if err != nil {
@@ -173,20 +184,13 @@ func main() {
 	}
 
 	if *isDev || *isIntegration {
-		pwd, err := os.Getwd()
-		if err != nil {
-			fail(ctx, err)
-		}
-
-		_, err = utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
-			Env:           envArray,
-			Dockerfile:    "Integration.Dockerfile",
-			Command:       []string{"/bin/bash"},
-			Wait:          true,
-			IsHostNetwork: *isHostMode,
-			ExposePorts:   false,
-			Attach:        true,
-			WorkingDir:    "/build",
+		dockerCfg := models.DockerConfig{
+			User:        "root",
+			Command:     []string{"/bin/bash"},
+			Wait:        true,
+			ExposePorts: false,
+			Attach:      true,
+			WorkingDir:  "/build",
 			Mounts: []mount.Mount{
 				mount.Mount{
 					Source:      pwd,
@@ -196,20 +200,29 @@ func main() {
 					Consistency: mount.ConsistencyFull,
 				},
 			},
-		}, &routableLinks, &liveContainerIDs)
+		}
+
+		// If you have a build image then use this for dev
+		// if not then use the integration docker image
+		// Why do you not need a build image?
+		if len(yml.Build.Image) > 0 {
+			_, err = utils.StartContainerByEazyYml(ctx, yml, yml.Build.Image, dockerCfg, &routableLinks, &liveContainerIDs)
+		} else {
+			dockerCfg.Dockerfile = "Integration.Dockerfile"
+			_, err = utils.BuildAndRunContainer(ctx, yml, dockerCfg, &routableLinks, &liveContainerIDs)
+		}
 
 		if err != nil {
 			fail(ctx, err)
 		}
+
 	} else {
 		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
-			Env:           envArray,
-			Dockerfile:    "Integration.Dockerfile",
-			Command:       yml.Integration.RunTest,
-			Wait:          true,
-			IsHostNetwork: *isHostMode,
-			ExposePorts:   false,
-			Attach:        false,
+			Dockerfile:  "Integration.Dockerfile",
+			Command:     yml.Integration.RunTest,
+			Wait:        true,
+			ExposePorts: false,
+			Attach:      false,
 		}, &routableLinks, &liveContainerIDs)
 
 		if err != nil {
@@ -221,13 +234,12 @@ func main() {
 	success(ctx)
 }
 
-func startUnit(ctx context.Context, yml models.EazyYml, isHostMode bool) {
+func startUnit(ctx context.Context, yml models.EazyYml) {
 	if len(yml.Integration.Bootstrap) > 0 {
 		_, err := utils.StartContainerByEazyYml(ctx, yml, models.GetLatestIntegrationImageName(yml), models.DockerConfig{
-			Command:       yml.Integration.Bootstrap,
-			Wait:          true,
-			IsHostNetwork: isHostMode,
-			ExposePorts:   false,
+			Command:     yml.Integration.Bootstrap,
+			Wait:        true,
+			ExposePorts: false,
 		}, &routableLinks, &liveContainerIDs)
 
 		if err != nil {
@@ -235,20 +247,19 @@ func startUnit(ctx context.Context, yml models.EazyYml, isHostMode bool) {
 		}
 	}
 	_, err := utils.StartContainerByEazyYml(ctx, yml, "", models.DockerConfig{
-		Wait:          false,
-		IsHostNetwork: isHostMode,
-		ExposePorts:   true,
-		IsRootImage:   true,
+		Env:         yml.Deployment.Env,
+		Wait:        false,
+		ExposePorts: true,
+		IsRootImage: true,
 	}, &routableLinks, &liveContainerIDs)
 	if err != nil {
 		fail(ctx, err)
 	}
 	if len(yml.Deployment.Health) > 0 {
 		_, err := utils.StartContainerByEazyYml(ctx, yml, models.GetLatestIntegrationImageName(yml), models.DockerConfig{
-			Command:       yml.Deployment.Health,
-			Wait:          true,
-			IsHostNetwork: isHostMode,
-			ExposePorts:   false,
+			Command:     yml.Deployment.Health,
+			Wait:        true,
+			ExposePorts: false,
 		}, &routableLinks, &liveContainerIDs)
 		if err != nil {
 			fail(ctx, err)
@@ -265,14 +276,18 @@ func fail(ctx context.Context, err error) {
 }
 
 func cleanUp(ctx context.Context, exitCode int, err error) {
-	log.Println("Do Clean Up!")
+	log.Println("cleaning up running containers...")
 	term.RestoreTerminal(os.Stdout.Fd(), oldStateOut)
 	for _, id := range liveContainerIDs {
 		err := utils.KillContainer(ctx, id)
-		if err != nil {
-			log.Println("container already shutdown: " + id)
+		if err == nil {
+			log.Println("container successfully shutdown: " + id)
 		}
 	}
-	log.Println(err)
+	if exitCode == 0 {
+		log.Println("Succeeded!")
+	} else {
+		log.Println("CI Failed!")
+	}
 	os.Exit(exitCode)
 }

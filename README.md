@@ -1,0 +1,109 @@
+# eazy-ci
+
+eazy-ci is a free to use language agnostic tool for developing, building, and testing complex systems.
+
+## Why another CI tool?
+
+Because the tools today are not complex enough and/or free for developing, building, and testing against complex microservice systems. Historically people have mocked or faked interactions with other systems, but with the advent of containers we can build better tested systems. Are integration tests slower? Of course they are, but are they more reliable, absolutely. With how powerful and cheap compute is these days we should all embrace integration tests... thus the advent of eazy-ci.
+
+## Install
+
+Pull the appropriate binary from the releases page rename it "eazy" and put it on your path
+
+## Usage
+
+### Basic Usage
+
+```sh
+$ cd /home/user/my-project
+$ eazy
+```
+This command will in order:
+- recursively pull eazy.yml files for all dependencies, and peer dependencies
+- Start all dependency containers in order
+- Build an artifact if configured in eazy.yml
+- Build and start the production dockerfile
+- Build and run the integration test dockerfile
+- Report back results of the operations
+
+### Development Mode
+```sh
+$ eazy -d
+```
+Using the -d flag will:
+- recursively pull eazy.yml files for all dependencies, and peer dependencies
+- Start all dependency containers in order
+- Start build image or integration dockerfile if build image not supplied
+- volume mount source code directory and attach to container which allows users to develop without manually configuring a dev environment on their local machine
+
+### Integration Mode
+```sh
+$ eazy -i
+```
+Using the -d flag will:
+- recursively pull eazy.yml files for all dependencies, and peer dependencies
+- Start all dependency containers in order
+- Build and run the production dockerfile image
+- Start build image or integration dockerfile if build image not supplied
+- volume mount source code directory and attach to container which allows users to integration test their code
+
+### Other options
+
+```
+  -f	Specify the Eazy-CI file to run (default "./eazy.yml")
+  -k	File path for ssh private key github access
+
+```
+
+## Setting up a Eazy-CI Project
+
+### Directory Structure
+
+```
+----> eazy.yml # eazy-ci configuration file
+----> Dockerfile # The production image
+----> Integration.Dockerfile #The file that can run healthchecks, bootstrapping, and integration tests for your project
+```
+
+### eazy.yml
+#### Example:
+```yml
+eazyVersion: '1.0'
+name: 'eazy-kotlin-test-service'
+releases:
+  - 'latest'
+  - '0.0.1'
+image: 'shibbybird/eazy-ci-kotlin-test-service'
+build:
+  image: 'gradle:5.2.1-jdk8'
+  command:
+    - '/bin/sh'
+    - '-c'
+    - 'gradle build'
+deployment:
+  env:
+    - 'APP_ENV=integration'
+  ports:
+    - 7070
+  health:
+    - '/bin/sh'
+    - '-c'
+    - 'while ! curl http://eazy-kotlin-test-service:7070/health; do sleep 1; done;'
+integration:
+  bootstrap:
+    - '/bin/sh'
+    - '-c'
+    - 'cqlsh eazy-ci-cassandra --cqlversion=3.4.4 -f /root/build/cassandra/init.cql'
+  runTest:
+    - '/bin/sh'
+    - '-c'
+    - './gradlew integration'
+  dependencies:
+    - 'github.com/shibbybird/eazy-ci-cassandra'
+  peerDependencies:
+    - 'github.com/shibbybird/eazy-ci-kafka'
+```
+
+## Example Projects:
+
+### [eazy-ci Kotlin Example Service](https://github.com/shibbybird/eazy-kotlin-test-service)

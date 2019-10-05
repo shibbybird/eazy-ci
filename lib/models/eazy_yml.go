@@ -10,7 +10,12 @@ type EazyYml struct {
 	EazyVersion string `yaml:"eazyVersion"`
 	Releases    []string
 	Image       string
-	Deployment  struct {
+	Build       struct {
+		Image   string
+		Command []string
+	}
+	Deployment struct {
+		Env    []string
 		Ports  []string
 		Health []string
 	}
