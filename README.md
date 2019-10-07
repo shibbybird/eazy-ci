@@ -13,19 +13,19 @@ Pull the appropriate binary from the releases page rename it "eazy" and put it o
 
 ### Linux
 ```
-wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.1/eazy_linux -O /home/$USER/bin/eazy && chmod +x /home/$USER/bin/eazy
+wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.2/eazy_linux -O /home/$USER/bin/eazy && chmod +x /home/$USER/bin/eazy
 ```
 
 ### MacOS
 ```
-wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.1/eazy_darwin -O /home/$USER/bin/eazy && chmod +x /home/$USER/bin/eazy
+wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.2/eazy_darwin -O /home/$USER/bin/eazy && chmod +x /Users/$USER/bin/eazy
 ```
 
 ### Windows
 ```
 # Not sure if this works?
 # Someone please confirm?
-wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.1/eazy_windows -O /home/$USER/bin/eazy.exe
+wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.2/eazy_windows.exe -O /home/$USER/bin/eazy.exe
 ```
 
 ## Usage
@@ -70,7 +70,7 @@ Using the -d flag will:
 ```
   -f	Specify the Eazy-CI file to run (default "./eazy.yml")
   -k	File path for ssh private key github access
-
+  -p  Open ports to depedencies and project containers locally. DISCLAIMER: If there are port conflicts starting eazy will fail.
 ```
 
 ## Setting up a Eazy-CI Project

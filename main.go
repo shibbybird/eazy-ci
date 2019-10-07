@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -16,6 +17,8 @@ import (
 
 	"github.com/shibbybird/eazy-ci/lib/models"
 )
+
+var VERSION = "v0.0.2"
 
 var liveContainerIDs = []string{}
 var routableLinks = []string{}
@@ -37,12 +40,19 @@ func main() {
 		}
 	}()
 
-	filePath := flag.String("f", "./eazy.yml", "The Eazy CI file ")
+	getVersion := flag.Bool("v", false, "Get version info")
+	filePath := flag.String("f", "./eazy.yml", "The Eazy CI file")
 	isDev := flag.Bool("d", false, "Run dependencies and peer depedencies")
+	openPortsLocally := flag.Bool("p", false, "Open ports to depedencies and project containers locally. DISCLAIMER: If there are port conflicts starting eazy-ci will fail.")
 	isIntegration := flag.Bool("i", false, "Run dependencies, peer dependencies, and build/start Dockerfile")
 	pemKeyPath := flag.String("k", "", "File path for ssh private key for github access")
 
 	flag.Parse()
+
+	if *getVersion {
+		fmt.Println(VERSION)
+		os.Exit(0)
+	}
 
 	fileData, err := ioutil.ReadFile(*filePath)
 	if err != nil {
@@ -101,11 +111,11 @@ func main() {
 	}
 
 	for _, d := range peerDependencies {
-		startUnit(ctx, d)
+		startUnit(ctx, d, *openPortsLocally)
 	}
 
 	for _, d := range dependencies {
-		startUnit(ctx, d)
+		startUnit(ctx, d, *openPortsLocally)
 	}
 
 	if len(yml.Integration.Bootstrap) > 0 {
@@ -158,7 +168,7 @@ func main() {
 			Dockerfile:  "Dockerfile",
 			Command:     []string{},
 			Wait:        false,
-			ExposePorts: true,
+			ExposePorts: *openPortsLocally,
 			Attach:      false,
 			IsRootImage: true,
 		}, &routableLinks, &liveContainerIDs)
@@ -234,7 +244,7 @@ func main() {
 	success(ctx)
 }
 
-func startUnit(ctx context.Context, yml models.EazyYml) {
+func startUnit(ctx context.Context, yml models.EazyYml, openPortsLocally bool) {
 	if len(yml.Integration.Bootstrap) > 0 {
 		_, err := utils.StartContainerByEazyYml(ctx, yml, models.GetLatestIntegrationImageName(yml), models.DockerConfig{
 			Command:     yml.Integration.Bootstrap,
@@ -249,7 +259,7 @@ func startUnit(ctx context.Context, yml models.EazyYml) {
 	_, err := utils.StartContainerByEazyYml(ctx, yml, "", models.DockerConfig{
 		Env:         yml.Deployment.Env,
 		Wait:        false,
-		ExposePorts: true,
+		ExposePorts: openPortsLocally,
 		IsRootImage: true,
 	}, &routableLinks, &liveContainerIDs)
 	if err != nil {

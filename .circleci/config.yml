@@ -24,3 +24,19 @@ jobs:
       # specify any bash command here prefixed with `run: `
       - run: dep ensure -v
       - run: go test -v ./...
+      - run: GOOS=linux GOARCH=amd64 go build -o /tmp/artifacts/eazy_linux ./main.go
+      - run: GOOS=darwin GOARCH=amd64 go build -o /tmp/artifacts/eazy_macos ./main.go
+
+      # Necessary while this issues exists: https://github.com/moby/moby/pull/40021
+      # PR found here: https://github.com/moby/moby/pull/40021/commits/c3a0a3744636069f43197eb18245aaae89f568e5
+      - run: ./windows-bug-build-helper.sh
+      - run: GOOS=windows GOARCH=amd64 go build -o /tmp/artifacts/eazy_windows.exe ./main.go
+      - run:
+          name: "Publish Release on GitHub"
+          command: |
+            go get github.com/tcnksm/ghr
+            VERSION=$(/tmp/artifacts/eazy_linux -v)
+            echo $VERSION
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} /tmp/artifacts
+      - store_artifacts:
+          path: /tmp/artifacts
