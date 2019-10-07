@@ -18,7 +18,7 @@ wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.2/eazy_linux -
 
 ### MacOS
 ```
-wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.2/eazy_darwin -O /home/$USER/bin/eazy && chmod +x /Users/$USER/bin/eazy
+wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.2/eazy_macos -O /usr/local/bin/eazy && chmod +x /usr/local/bin/eazy
 ```
 
 ### Windows
