@@ -93,6 +93,7 @@ releases:
   - '0.0.1'
 image: 'shibbybird/eazy-ci-kotlin-test-service'
 build:
+  buildEnvironment: 'gradle'
   image: 'gradle:5.2.1-jdk8'
   command:
     - '/bin/sh'
@@ -115,12 +116,18 @@ integration:
   runTest:
     - '/bin/sh'
     - '-c'
-    - './gradlew integration'
+    - './gradlew integration -i'
   dependencies:
     - 'github.com/shibbybird/eazy-ci-cassandra'
   peerDependencies:
     - 'github.com/shibbybird/eazy-ci-kafka'
 ```
+
+## Build Environment
+This is an agnostic tool, but special build environment caching is supported for some build environments. This works through volume mounting to your home directory in the ~/.eazy directory. Feel free to contribute more build environment caches so that development and building can be faster. On the docket is sbt, maven, and go.
+
+### Build Environment Cache Support List:
+- gradle
 
 ## Example Projects:
 

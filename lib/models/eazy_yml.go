@@ -11,8 +11,9 @@ type EazyYml struct {
 	Releases    []string
 	Image       string
 	Build       struct {
-		Image   string
-		Command []string
+		BuildEnvironment string `yaml:"buildEnvironment"`
+		Image            string
+		Command          []string
 	}
 	Deployment struct {
 		Env    []string

@@ -11,8 +11,8 @@ import (
 	"os/signal"
 	"strings"
 
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/term"
+	"github.com/shibbybird/eazy-ci/lib/builders"
 	"github.com/shibbybird/eazy-ci/lib/utils"
 
 	"github.com/shibbybird/eazy-ci/lib/models"
@@ -29,6 +29,15 @@ var oldStateOut *term.State = nil
 
 func main() {
 	ctx := context.Background()
+
+	// Create a .eazy directory in user home
+	homeDir, err := utils.GetEazyHomeDir()
+	if err != nil {
+		fail(ctx, err)
+	}
+	if _, err := os.Stat(homeDir); os.IsNotExist(err) {
+		os.Mkdir(homeDir, 0775)
+	}
 
 	oldStateOut, _ = term.SetRawTerminalOutput(os.Stdout.Fd())
 
@@ -118,6 +127,19 @@ func main() {
 		startUnit(ctx, d, *openPortsLocally)
 	}
 
+	envBuilder := builders.GetBuildEnvironment(yml.Build.BuildEnvironment)
+	localCacheMounts, err := envBuilder.GetLocalCacheMounts()
+
+	if err != nil {
+		fail(ctx, err)
+	}
+
+	buildImageDocker, err := envBuilder.GetBuildContainerOptions()
+
+	if err != nil {
+		fail(ctx, err)
+	}
+
 	if len(yml.Integration.Bootstrap) > 0 {
 		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
 			Dockerfile:  "Integration.Dockerfile",
@@ -125,6 +147,7 @@ func main() {
 			Wait:        true,
 			ExposePorts: false,
 			Attach:      false,
+			Mounts:      localCacheMounts,
 		}, &routableLinks, &liveContainerIDs)
 
 		if err != nil {
@@ -132,38 +155,19 @@ func main() {
 		}
 	}
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		fail(ctx, err)
-	}
-
 	if !*isDev {
 
 		if len(yml.Build.Image) > 0 {
-			_, err := utils.StartContainerByEazyYml(ctx, yml, yml.Build.Image, models.DockerConfig{
-				User:        "root",
-				Command:     yml.Build.Command,
-				Wait:        true,
-				ExposePorts: false,
-				Attach:      false,
-				WorkingDir:  "/build",
-				Mounts: []mount.Mount{
-					mount.Mount{
-						Source:      pwd,
-						Target:      "/build",
-						Type:        mount.TypeBind,
-						ReadOnly:    false,
-						Consistency: mount.ConsistencyFull,
-					},
-				},
-			}, &routableLinks, &liveContainerIDs)
+			buildImageDocker.Command = yml.Build.Command
+			_, err := utils.StartContainerByEazyYml(ctx, yml, yml.Build.Image,
+				buildImageDocker, &routableLinks, &liveContainerIDs)
 
 			if err != nil {
 				fail(ctx, err)
 			}
 		}
 
-		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
+		_, err = utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
 			Env:         yml.Deployment.Env,
 			Dockerfile:  "Dockerfile",
 			Command:     []string{},
@@ -185,6 +189,7 @@ func main() {
 				Wait:        true,
 				ExposePorts: false,
 				Attach:      false,
+				Mounts:      localCacheMounts,
 			}, &routableLinks, &liveContainerIDs)
 
 			if err != nil {
@@ -194,32 +199,16 @@ func main() {
 	}
 
 	if *isDev || *isIntegration {
-		dockerCfg := models.DockerConfig{
-			User:        "root",
-			Command:     []string{"/bin/bash"},
-			Wait:        true,
-			ExposePorts: false,
-			Attach:      true,
-			WorkingDir:  "/build",
-			Mounts: []mount.Mount{
-				mount.Mount{
-					Source:      pwd,
-					Target:      "/build",
-					Type:        mount.TypeBind,
-					ReadOnly:    false,
-					Consistency: mount.ConsistencyFull,
-				},
-			},
-		}
+		buildImageDocker.Command = []string{"/bin/bash"}
 
 		// If you have a build image then use this for dev
 		// if not then use the integration docker image
 		// Why do you not need a build image?
 		if len(yml.Build.Image) > 0 {
-			_, err = utils.StartContainerByEazyYml(ctx, yml, yml.Build.Image, dockerCfg, &routableLinks, &liveContainerIDs)
+			_, err = utils.StartContainerByEazyYml(ctx, yml, yml.Build.Image, buildImageDocker, &routableLinks, &liveContainerIDs)
 		} else {
-			dockerCfg.Dockerfile = "Integration.Dockerfile"
-			_, err = utils.BuildAndRunContainer(ctx, yml, dockerCfg, &routableLinks, &liveContainerIDs)
+			buildImageDocker.Dockerfile = "Integration.Dockerfile"
+			_, err = utils.BuildAndRunContainer(ctx, yml, buildImageDocker, &routableLinks, &liveContainerIDs)
 		}
 
 		if err != nil {
@@ -233,6 +222,7 @@ func main() {
 			Wait:        true,
 			ExposePorts: false,
 			Attach:      false,
+			Mounts:      localCacheMounts,
 		}, &routableLinks, &liveContainerIDs)
 
 		if err != nil {

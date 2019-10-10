@@ -3,6 +3,7 @@ name: 'test-service'
 releases: ['v1.0.0', 'v1.1.0']
 image: 'test/image'
 build:
+  buildEnvironment: 'gradle'
   image: 'gradle:5.6.2-jdk8'
   command:
     - '/bin/sh'
