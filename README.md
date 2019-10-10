@@ -9,6 +9,10 @@ Because the tools today are not complex enough and/or free for developing, build
 
 ## Install
 
+### Prerequisites
+- Install ssh agent if you don't have it and set up an ssh key with your github account
+- Install latest version of docker we are currently tracking against docker client version 1.40
+
 Pull the appropriate binary from the releases page rename it "eazy" and put it on your path
 
 ### Linux
@@ -18,7 +22,7 @@ wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.2/eazy_linux -
 
 ### MacOS
 ```
-wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.2/eazy_darwin -O /home/$USER/bin/eazy && chmod +x /Users/$USER/bin/eazy
+wget https://github.com/shibbybird/eazy-ci/releases/download/v0.0.2/eazy_macos -O /usr/local/bin/eazy && chmod +x /usr/local/bin/eazy
 ```
 
 ### Windows

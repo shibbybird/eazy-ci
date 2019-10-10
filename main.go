@@ -287,6 +287,7 @@ func cleanUp(ctx context.Context, exitCode int, err error) {
 	if exitCode == 0 {
 		log.Println("Succeeded!")
 	} else {
+		log.Println(err)
 		log.Println("CI Failed!")
 	}
 	os.Exit(exitCode)
