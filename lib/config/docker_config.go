@@ -1,4 +1,4 @@
-package models
+package config
 
 import "github.com/docker/docker/api/types/mount"
 

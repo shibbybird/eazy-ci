@@ -8,10 +8,10 @@ import (
 	"github.com/shibbybird/eazy-ci/lib/utils"
 )
 
-type gradleEnvironmentBuilder struct{}
+type sbtEnvironmentBuilder struct{}
 
-func (g gradleEnvironmentBuilder) GetBuildContainerOptions() (config.DockerConfig, error) {
-	cacheMounts, err := g.GetLocalCacheMounts()
+func (s sbtEnvironmentBuilder) GetBuildContainerOptions() (config.DockerConfig, error) {
+	cacheMounts, err := s.GetLocalCacheMounts()
 
 	if err != nil {
 		return config.DockerConfig{}, err
@@ -45,35 +45,59 @@ func (g gradleEnvironmentBuilder) GetBuildContainerOptions() (config.DockerConfi
 	}, nil
 }
 
-func (g gradleEnvironmentBuilder) GetLocalCacheMounts() ([]mount.Mount, error) {
+func (s sbtEnvironmentBuilder) GetLocalCacheMounts() ([]mount.Mount, error) {
 	homeDir, err := utils.GetEazyHomeDir()
 
 	if err != nil {
 		return nil, err
 	}
 
-	// Create a .gradleDir
-	gradleDir := homeDir + "/.gradle"
-	if _, err := os.Stat(gradleDir); os.IsNotExist(err) {
-		os.Mkdir(gradleDir, 0775)
+	// Create a .sbt
+	sbtDir := homeDir + "/.sbt"
+	if _, err := os.Stat(sbtDir); os.IsNotExist(err) {
+		os.Mkdir(sbtDir, 0775)
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	// Added /home/gradle/.gradle because of popular docker image: gradle:5.2.1-jdk8
+	// Create ivy cache
+	ivyCacheDir := homeDir + "/.ivy2"
+	if _, err := os.Stat(ivyCacheDir); os.IsNotExist(err) {
+		os.Mkdir(ivyCacheDir, 0775)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Added /home/sbtuser/.ivy2 because of popular image: hseeberger/scala-sbt
 	return []mount.Mount{
 		mount.Mount{
-			Source:      gradleDir,
-			Target:      "/root/.gradle",
+			Source:      sbtDir,
+			Target:      "/root/.sbt",
 			Type:        mount.TypeBind,
 			ReadOnly:    false,
 			Consistency: mount.ConsistencyFull,
 		},
 		mount.Mount{
-			Source:      gradleDir,
-			Target:      "/home/gradle/.gradle",
+			Source:      sbtDir,
+			Target:      "/home/sbtuser/.sbt",
+			Type:        mount.TypeBind,
+			ReadOnly:    false,
+			Consistency: mount.ConsistencyFull,
+		},
+		mount.Mount{
+			Source:      ivyCacheDir,
+			Target:      "/root/.ivy2",
+			Type:        mount.TypeBind,
+			ReadOnly:    false,
+			Consistency: mount.ConsistencyFull,
+		},
+		mount.Mount{
+			Source:      ivyCacheDir,
+			Target:      "/home/sbtuser/.ivy2",
 			Type:        mount.TypeBind,
 			ReadOnly:    false,
 			Consistency: mount.ConsistencyFull,

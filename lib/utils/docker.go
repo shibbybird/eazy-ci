@@ -16,10 +16,10 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/go-connections/nat"
-	"github.com/shibbybird/eazy-ci/lib/models"
+	"github.com/shibbybird/eazy-ci/lib/config"
 )
 
-func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, imageOverride string, cfg models.DockerConfig, routableLinks *[]string, liveContainers *[]string) (string, error) {
+func StartContainerByEazyYml(ctx context.Context, eazy config.EazyYml, imageOverride string, cfg config.DockerConfig, routableLinks *[]string, liveContainers *[]string) (string, error) {
 
 	dockerClient, err := client.NewClientWithOpts(client.WithVersion("1.40"))
 	if err != nil {
@@ -31,7 +31,7 @@ func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, imageOver
 	if len(imageOverride) > 0 {
 		image = imageOverride
 	} else {
-		image = models.GetLatestImageName(eazy)
+		image = config.GetLatestImageName(eazy)
 	}
 
 	reader, err := dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
@@ -76,8 +76,8 @@ func StartContainerByEazyYml(ctx context.Context, eazy models.EazyYml, imageOver
 
 }
 
-func createContainer(ctx context.Context, eazy models.EazyYml, dockerClient *client.Client, imageOverride string, cfg models.DockerConfig, routableLinks []string) (string, error) {
-	imageName := models.GetLatestImageName(eazy)
+func createContainer(ctx context.Context, eazy config.EazyYml, dockerClient *client.Client, imageOverride string, cfg config.DockerConfig, routableLinks []string) (string, error) {
+	imageName := config.GetLatestImageName(eazy)
 
 	if len(imageOverride) > 0 {
 		imageName = imageOverride
@@ -176,7 +176,7 @@ func hijackConnection(ctx context.Context, resp types.HijackedResponse, attached
 	}
 }
 
-func startContainer(ctx context.Context, containerID string, dockerClient *client.Client, cfg models.DockerConfig) error {
+func startContainer(ctx context.Context, containerID string, dockerClient *client.Client, cfg config.DockerConfig) error {
 	var errResult error
 
 	if cfg.Attach || cfg.Wait {
@@ -233,7 +233,7 @@ func startContainer(ctx context.Context, containerID string, dockerClient *clien
 	return errResult
 }
 
-func BuildAndRunContainer(ctx context.Context, eazy models.EazyYml, cfg models.DockerConfig, routableLinks *[]string, liveContainers *[]string) (string, error) {
+func BuildAndRunContainer(ctx context.Context, eazy config.EazyYml, cfg config.DockerConfig, routableLinks *[]string, liveContainers *[]string) (string, error) {
 
 	dockerClient, err := client.NewClientWithOpts(client.WithVersion("1.40"))
 	tar, err := archive.TarWithOptions("./", &archive.TarOptions{})

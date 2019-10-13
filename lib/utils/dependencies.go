@@ -3,16 +3,16 @@ package utils
 import (
 	"log"
 
-	"github.com/shibbybird/eazy-ci/lib/models"
+	"github.com/shibbybird/eazy-ci/lib/config"
 )
 
-func GetDependencies(in models.EazyYml, out *[]models.EazyYml, sshKeyPath string) error {
+func GetDependencies(in config.EazyYml, out *[]config.EazyYml, sshKeyPath string) error {
 	for _, d := range in.Integration.Dependencies {
 		data, err := GetEazyYmlFromRepository(d, sshKeyPath)
 		if err != nil {
 			return err
 		}
-		eazy, err := models.EazyYmlUnmarshal(data)
+		eazy, err := config.EazyYmlUnmarshal(data)
 		if err != nil {
 			return err
 		}
@@ -27,15 +27,14 @@ func GetDependencies(in models.EazyYml, out *[]models.EazyYml, sshKeyPath string
 	return nil
 }
 
-func GetPeerDependencies(in models.EazyYml, out *[]models.EazyYml, peers map[string]bool, sshKeyPath string) error {
+func GetPeerDependencies(in config.EazyYml, out *[]config.EazyYml, peers map[string]bool, sshKeyPath string) error {
 	for _, d := range in.Integration.PeerDependencies {
-		log.Println(d)
 		data, err := GetEazyYmlFromRepository(d, sshKeyPath)
 		if err != nil {
 			log.Println(err)
 			return err
 		}
-		eazy, err := models.EazyYmlUnmarshal(data)
+		eazy, err := config.EazyYmlUnmarshal(data)
 		if err != nil {
 			return err
 		}
@@ -46,6 +45,7 @@ func GetPeerDependencies(in models.EazyYml, out *[]models.EazyYml, peers map[str
 			}
 		}
 		if _, ok := peers[d]; !ok {
+			log.Println(d)
 			*out = append(*out, eazy)
 			peers[d] = true
 		}

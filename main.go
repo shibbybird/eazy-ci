@@ -15,7 +15,7 @@ import (
 	"github.com/shibbybird/eazy-ci/lib/builders"
 	"github.com/shibbybird/eazy-ci/lib/utils"
 
-	"github.com/shibbybird/eazy-ci/lib/models"
+	"github.com/shibbybird/eazy-ci/lib/config"
 )
 
 var VERSION = "v0.0.2"
@@ -68,12 +68,12 @@ func main() {
 		fail(ctx, err)
 	}
 
-	yml, err := models.EazyYmlUnmarshal(fileData)
+	yml, err := config.EazyYmlUnmarshal(fileData)
 	if err != nil {
 		fail(ctx, err)
 	}
 
-	dependencies := []models.EazyYml{}
+	dependencies := []config.EazyYml{}
 
 	err = utils.GetDependencies(yml, &dependencies, *pemKeyPath)
 
@@ -93,7 +93,7 @@ func main() {
 		}
 	}
 
-	peerDependencies := []models.EazyYml{}
+	peerDependencies := []config.EazyYml{}
 	peerDependenciesSet := map[string]bool{}
 
 	// Collect Peer Dependencies
@@ -141,7 +141,7 @@ func main() {
 	}
 
 	if len(yml.Integration.Bootstrap) > 0 {
-		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
+		_, err := utils.BuildAndRunContainer(ctx, yml, config.DockerConfig{
 			Dockerfile:  "Integration.Dockerfile",
 			Command:     yml.Integration.Bootstrap,
 			Wait:        true,
@@ -167,7 +167,7 @@ func main() {
 			}
 		}
 
-		_, err = utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
+		_, err = utils.BuildAndRunContainer(ctx, yml, config.DockerConfig{
 			Env:         yml.Deployment.Env,
 			Dockerfile:  "Dockerfile",
 			Command:     []string{},
@@ -183,7 +183,7 @@ func main() {
 
 		if len(yml.Deployment.Health) > 0 {
 
-			_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
+			_, err := utils.BuildAndRunContainer(ctx, yml, config.DockerConfig{
 				Dockerfile:  "Integration.Dockerfile",
 				Command:     yml.Deployment.Health,
 				Wait:        true,
@@ -216,7 +216,7 @@ func main() {
 		}
 
 	} else {
-		_, err := utils.BuildAndRunContainer(ctx, yml, models.DockerConfig{
+		_, err := utils.BuildAndRunContainer(ctx, yml, config.DockerConfig{
 			Dockerfile:  "Integration.Dockerfile",
 			Command:     yml.Integration.RunTest,
 			Wait:        true,
@@ -234,9 +234,9 @@ func main() {
 	success(ctx)
 }
 
-func startUnit(ctx context.Context, yml models.EazyYml, openPortsLocally bool) {
+func startUnit(ctx context.Context, yml config.EazyYml, openPortsLocally bool) {
 	if len(yml.Integration.Bootstrap) > 0 {
-		_, err := utils.StartContainerByEazyYml(ctx, yml, models.GetLatestIntegrationImageName(yml), models.DockerConfig{
+		_, err := utils.StartContainerByEazyYml(ctx, yml, config.GetLatestIntegrationImageName(yml), config.DockerConfig{
 			Command:     yml.Integration.Bootstrap,
 			Wait:        true,
 			ExposePorts: false,
@@ -246,7 +246,7 @@ func startUnit(ctx context.Context, yml models.EazyYml, openPortsLocally bool) {
 			fail(ctx, err)
 		}
 	}
-	_, err := utils.StartContainerByEazyYml(ctx, yml, "", models.DockerConfig{
+	_, err := utils.StartContainerByEazyYml(ctx, yml, "", config.DockerConfig{
 		Env:         yml.Deployment.Env,
 		Wait:        false,
 		ExposePorts: openPortsLocally,
@@ -256,7 +256,7 @@ func startUnit(ctx context.Context, yml models.EazyYml, openPortsLocally bool) {
 		fail(ctx, err)
 	}
 	if len(yml.Deployment.Health) > 0 {
-		_, err := utils.StartContainerByEazyYml(ctx, yml, models.GetLatestIntegrationImageName(yml), models.DockerConfig{
+		_, err := utils.StartContainerByEazyYml(ctx, yml, config.GetLatestIntegrationImageName(yml), config.DockerConfig{
 			Command:     yml.Deployment.Health,
 			Wait:        true,
 			ExposePorts: false,

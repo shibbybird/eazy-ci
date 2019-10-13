@@ -5,16 +5,17 @@ import (
 	"os"
 
 	"github.com/docker/docker/api/types/mount"
-	"github.com/shibbybird/eazy-ci/lib/models"
+	"github.com/shibbybird/eazy-ci/lib/config"
 )
 
 type buildEnvironment interface {
-	GetBuildContainerOptions() (models.DockerConfig, error)
+	GetBuildContainerOptions() (config.DockerConfig, error)
 	GetLocalCacheMounts() ([]mount.Mount, error)
 }
 
 var supportedBuilders = map[string]buildEnvironment{
 	"gradle": gradleEnvironmentBuilder{},
+	"sbt":    sbtEnvironmentBuilder{},
 }
 
 func GetBuildEnvironment(envBuilder string) buildEnvironment {
@@ -31,11 +32,11 @@ func GetBuildEnvironment(envBuilder string) buildEnvironment {
 
 type defaultEnvironmentBuilder struct{}
 
-func (g defaultEnvironmentBuilder) GetBuildContainerOptions() (models.DockerConfig, error) {
+func (g defaultEnvironmentBuilder) GetBuildContainerOptions() (config.DockerConfig, error) {
 	pwd, err := os.Getwd()
 
 	if err != nil {
-		return models.DockerConfig{}, err
+		return config.DockerConfig{}, err
 	}
 
 	mounts := []mount.Mount{
@@ -48,7 +49,7 @@ func (g defaultEnvironmentBuilder) GetBuildContainerOptions() (models.DockerConf
 		},
 	}
 
-	return models.DockerConfig{
+	return config.DockerConfig{
 		User:        "root",
 		Wait:        true,
 		ExposePorts: false,
