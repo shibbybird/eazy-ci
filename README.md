@@ -128,10 +128,11 @@ integration:
 ```
 
 ## Build Environment
-This is an agnostic tool, but special build environment caching is supported for some build environments. This works through volume mounting to your home directory in the ~/.eazy directory. Feel free to contribute more build environment caches so that development and building can be faster. On the docket is sbt, maven, and go.
+This is an agnostic tool, but special build environment caching is supported for some build environments. This works through volume mounting to your home directory in the ~/.eazy directory. Feel free to contribute more build environment caches so that development and building can be faster. On the docket is maven, and go.
 
 ### Build Environment Cache Support List:
 - gradle
+- sbt
 
 ## Example Projects:
 
