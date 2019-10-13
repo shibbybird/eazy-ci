@@ -134,6 +134,7 @@ This is an agnostic tool, but special build environment caching is supported for
 - gradle
 - sbt
 
-## Example Projects:
+### Example Projects:
 
-### [eazy-ci Kotlin Example Service](https://github.com/shibbybird/eazy-kotlin-test-service)
+#### [eazy-ci Kotlin Example Service](https://github.com/shibbybird/eazy-kotlin-test-service)
+#### [eazy-ci Scala Example Service](https://github.com/shibbybird/eazy-scala-test-api)
