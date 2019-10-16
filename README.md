@@ -136,5 +136,6 @@ This is an agnostic tool, but special build environment caching is supported for
 
 ### Example Projects:
 
-#### [eazy-ci Kotlin Example Service](https://github.com/shibbybird/eazy-kotlin-test-service)
-#### [eazy-ci Scala Example Service](https://github.com/shibbybird/eazy-scala-test-api)
+#### [eazy - Kotlin Example Service](https://github.com/shibbybird/eazy-kotlin-test-service)
+#### [eazy - Node.js Example API](https://github.com/shibbybird/eazy-node-test-registry)
+#### [eazy - Scala Example API](https://github.com/shibbybird/eazy-scala-test-api)

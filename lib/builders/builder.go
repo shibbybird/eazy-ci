@@ -13,20 +13,21 @@ type buildEnvironment interface {
 	GetLocalCacheMounts() ([]mount.Mount, error)
 }
 
-var supportedBuilders = map[string]buildEnvironment{
-	"gradle": gradleEnvironmentBuilder{},
-	"sbt":    sbtEnvironmentBuilder{},
-}
-
 func GetBuildEnvironment(envBuilder string) buildEnvironment {
 	var builder buildEnvironment
-	if b, ok := supportedBuilders[envBuilder]; ok {
-		log.Println("Using " + envBuilder + " Build Environment")
-		builder = b
-	} else {
-		log.Println("Using Default Build Environment")
+
+	switch envBuilder {
+	case "gradle":
+		log.Println("Using gradle build environment")
+		builder = gradleEnvironmentBuilder{}
+	case "sbt":
+		log.Println("Using sbt build environment")
+		builder = sbtEnvironmentBuilder{}
+	default:
+		log.Println("Your build environment does not have caching. Please contribute your build environment to Eazy!")
 		builder = defaultEnvironmentBuilder{}
 	}
+
 	return builder
 }
 

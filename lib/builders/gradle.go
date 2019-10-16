@@ -62,7 +62,7 @@ func (g gradleEnvironmentBuilder) GetLocalCacheMounts() ([]mount.Mount, error) {
 		return nil, err
 	}
 
-	// Added /home/gradle/.gradle because of popular docker image: gradle:5.2.1-jdk8
+	// Added /home/gradle/.gradle because of popular docker image: gradle:latest
 	return []mount.Mount{
 		mount.Mount{
 			Source:      gradleDir,
