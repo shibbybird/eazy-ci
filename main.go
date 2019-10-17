@@ -140,8 +140,10 @@ func main() {
 		fail(ctx, err)
 	}
 
+	var integrationImageID string
+
 	if len(yml.Integration.Bootstrap) > 0 {
-		_, err := utils.BuildAndRunContainer(ctx, yml, config.DockerConfig{
+		integrationImageID, err = utils.BuildAndRunContainer(ctx, yml, config.DockerConfig{
 			Dockerfile:  "Integration.Dockerfile",
 			Command:     yml.Integration.Bootstrap,
 			Wait:        true,
@@ -182,16 +184,21 @@ func main() {
 		}
 
 		if len(yml.Deployment.Health) > 0 {
-
-			_, err := utils.BuildAndRunContainer(ctx, yml, config.DockerConfig{
-				Dockerfile:  "Integration.Dockerfile",
-				Command:     yml.Deployment.Health,
-				Wait:        true,
-				ExposePorts: false,
-				Attach:      false,
-				Mounts:      localCacheMounts,
-			}, &routableLinks, &liveContainerIDs)
-
+			healthDockerConfig := config.DockerConfig{
+				Dockerfile:    "Integration.Dockerfile",
+				Command:       yml.Deployment.Health,
+				Wait:          true,
+				ExposePorts:   false,
+				Attach:        false,
+				SkipImagePull: true,
+				Mounts:        localCacheMounts,
+			}
+			if len(integrationImageID) > 0 {
+				log.Println(integrationImageID)
+				_, err = utils.StartContainerByEazyYml(ctx, yml, integrationImageID, healthDockerConfig, &routableLinks, &liveContainerIDs)
+			} else {
+				_, err = utils.BuildAndRunContainer(ctx, yml, healthDockerConfig, &routableLinks, &liveContainerIDs)
+			}
 			if err != nil {
 				fail(ctx, err)
 			}
@@ -204,7 +211,7 @@ func main() {
 		// If you have a build image then use this for dev
 		// if not then use the integration docker image
 		// Why do you not need a build image?
-		if len(yml.Build.Image) > 0 {
+		if len(yml.Build.Image) > 0 && *isDev {
 			_, err = utils.StartContainerByEazyYml(ctx, yml, yml.Build.Image, buildImageDocker, &routableLinks, &liveContainerIDs)
 		} else {
 			buildImageDocker.Dockerfile = "Integration.Dockerfile"

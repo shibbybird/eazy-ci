@@ -34,21 +34,22 @@ func StartContainerByEazyYml(ctx context.Context, eazy config.EazyYml, imageOver
 		image = config.GetLatestImageName(eazy)
 	}
 
-	reader, err := dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
-	if err != nil {
-		return "", err
-	}
-
-	aux := func(msg jsonmessage.JSONMessage) {
-		var result types.Container
-		if err := json.Unmarshal(*msg.Aux, &result); err != nil {
-			log.Fatal(err)
+	if !cfg.SkipImagePull {
+		reader, err := dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
+		if err != nil {
+			return "", err
 		}
+
+		aux := func(msg jsonmessage.JSONMessage) {
+			var result types.Container
+			if err := json.Unmarshal(*msg.Aux, &result); err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		jsonmessage.DisplayJSONMessagesStream(reader, os.Stdout, os.Stdout.Fd(), true, aux)
+		io.Copy(os.Stdout, reader)
 	}
-
-	jsonmessage.DisplayJSONMessagesStream(reader, os.Stdout, os.Stdout.Fd(), true, aux)
-
-	io.Copy(os.Stdout, reader)
 
 	containerID, err := createContainer(ctx, eazy, dockerClient, imageOverride, cfg, *routableLinks)
 	if err != nil {
@@ -293,7 +294,7 @@ func BuildAndRunContainer(ctx context.Context, eazy config.EazyYml, cfg config.D
 		term.RestoreTerminal(os.Stdin.Fd(), oldStateIn)
 	}
 
-	return containerID, err
+	return imageID, err
 
 }
 
