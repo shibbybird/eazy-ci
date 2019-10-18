@@ -1,4 +1,4 @@
-package utils
+package runtimes
 
 import (
 	"context"
@@ -19,13 +19,18 @@ import (
 	"github.com/shibbybird/eazy-ci/lib/config"
 )
 
-func StartContainerByEazyYml(ctx context.Context, eazy config.EazyYml, imageOverride string, cfg config.DockerConfig, routableLinks *[]string, liveContainers *[]string) (string, error) {
-
+// NewDockerRuntime returns a runtime for the docker runtime
+func NewDockerRuntime() (ContainerRuntime, error) {
 	dockerClient, err := client.NewClientWithOpts(client.WithVersion("1.40"))
 	if err != nil {
-		return "", err
+		return DockerRuntime{}, err
 	}
 
+	return DockerRuntime{client: dockerClient}, nil
+}
+
+//StartContainerByEazyYml bootstrap runtime container using provided yaml config
+func (runtime DockerRuntime) StartContainerByEazyYml(ctx context.Context, eazy config.EazyYml, imageOverride string, cfg config.RuntimeConfig, routableLinks *[]string, liveContainers *[]string) (string, error) {
 	var image string
 
 	if len(imageOverride) > 0 {
@@ -35,7 +40,7 @@ func StartContainerByEazyYml(ctx context.Context, eazy config.EazyYml, imageOver
 	}
 
 	if !cfg.SkipImagePull {
-		reader, err := dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
+		reader, err := runtime.client.ImagePull(ctx, image, types.ImagePullOptions{})
 		if err != nil {
 			return "", err
 		}
@@ -51,7 +56,7 @@ func StartContainerByEazyYml(ctx context.Context, eazy config.EazyYml, imageOver
 		io.Copy(os.Stdout, reader)
 	}
 
-	containerID, err := createContainer(ctx, eazy, dockerClient, imageOverride, cfg, *routableLinks)
+	containerID, err := createContainer(ctx, eazy, runtime, imageOverride, cfg, *routableLinks)
 	if err != nil {
 		return containerID, err
 	}
@@ -62,7 +67,7 @@ func StartContainerByEazyYml(ctx context.Context, eazy config.EazyYml, imageOver
 		oldStateIn, _ = term.SetRawTerminal(os.Stdin.Fd())
 	}
 
-	err = startContainer(ctx, containerID, dockerClient, cfg)
+	err = startContainer(ctx, containerID, runtime, cfg)
 	if err == nil {
 		if cfg.IsRootImage {
 			*routableLinks = append(*routableLinks, (containerID + ":" + eazy.Name))
@@ -77,7 +82,7 @@ func StartContainerByEazyYml(ctx context.Context, eazy config.EazyYml, imageOver
 
 }
 
-func createContainer(ctx context.Context, eazy config.EazyYml, dockerClient *client.Client, imageOverride string, cfg config.DockerConfig, routableLinks []string) (string, error) {
+func createContainer(ctx context.Context, eazy config.EazyYml, runtime DockerRuntime, imageOverride string, cfg config.RuntimeConfig, routableLinks []string) (string, error) {
 	imageName := config.GetLatestImageName(eazy)
 
 	if len(imageOverride) > 0 {
@@ -112,7 +117,7 @@ func createContainer(ctx context.Context, eazy config.EazyYml, dockerClient *cli
 		hostName = eazy.Name
 	}
 
-	response, err := dockerClient.ContainerCreate(ctx, &container.Config{
+	response, err := runtime.client.ContainerCreate(ctx, &container.Config{
 		User:         cfg.User,
 		Hostname:     hostName,
 		Domainname:   hostName,
@@ -177,11 +182,11 @@ func hijackConnection(ctx context.Context, resp types.HijackedResponse, attached
 	}
 }
 
-func startContainer(ctx context.Context, containerID string, dockerClient *client.Client, cfg config.DockerConfig) error {
+func startContainer(ctx context.Context, containerID string, runtime DockerRuntime, cfg config.RuntimeConfig) error {
 	var errResult error
 
 	if cfg.Attach || cfg.Wait {
-		resp, err := dockerClient.ContainerAttach(ctx, containerID, types.ContainerAttachOptions{
+		resp, err := runtime.client.ContainerAttach(ctx, containerID, types.ContainerAttachOptions{
 			Stream: true,
 			Stdin:  cfg.Attach,
 			Stdout: true,
@@ -205,7 +210,7 @@ func startContainer(ctx context.Context, containerID string, dockerClient *clien
 		defer resp.CloseWrite()
 	}
 
-	err := dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
+	err := runtime.client.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
 	if err != nil {
 		return err
 	}
@@ -213,7 +218,7 @@ func startContainer(ctx context.Context, containerID string, dockerClient *clien
 	if cfg.Wait {
 
 		statusResult := make(chan int)
-		chn, errCh := dockerClient.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
+		chn, errCh := runtime.client.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
 		go func() {
 			select {
 			case <-errCh:
@@ -234,9 +239,9 @@ func startContainer(ctx context.Context, containerID string, dockerClient *clien
 	return errResult
 }
 
-func BuildAndRunContainer(ctx context.Context, eazy config.EazyYml, cfg config.DockerConfig, routableLinks *[]string, liveContainers *[]string) (string, error) {
+// BuildAndRunContainer builds given container based on config and starts it
+func (runtime DockerRuntime) BuildAndRunContainer(ctx context.Context, eazy config.EazyYml, cfg config.RuntimeConfig, routableLinks *[]string, liveContainers *[]string) (string, error) {
 
-	dockerClient, err := client.NewClientWithOpts(client.WithVersion("1.40"))
 	tar, err := archive.TarWithOptions("./", &archive.TarOptions{})
 	if err != nil {
 		return "", err
@@ -248,7 +253,7 @@ func BuildAndRunContainer(ctx context.Context, eazy config.EazyYml, cfg config.D
 		Dockerfile: cfg.Dockerfile,
 	}
 
-	resp, err := dockerClient.ImageBuild(ctx, tar, opt)
+	resp, err := runtime.client.ImageBuild(ctx, tar, opt)
 	if err != nil {
 		return "", err
 	}
@@ -271,7 +276,7 @@ func BuildAndRunContainer(ctx context.Context, eazy config.EazyYml, cfg config.D
 		return "", err
 	}
 
-	containerID, err := createContainer(ctx, eazy, dockerClient, imageID, cfg, *routableLinks)
+	containerID, err := createContainer(ctx, eazy, runtime, imageID, cfg, *routableLinks)
 	if err != nil {
 		return containerID, err
 	}
@@ -283,7 +288,7 @@ func BuildAndRunContainer(ctx context.Context, eazy config.EazyYml, cfg config.D
 		oldStateIn, _ = term.SetRawTerminal(os.Stdin.Fd())
 	}
 
-	err = startContainer(ctx, containerID, dockerClient, cfg)
+	err = startContainer(ctx, containerID, runtime, cfg)
 	if err == nil {
 		if cfg.IsRootImage {
 			*routableLinks = append(*routableLinks, (containerID + ":" + eazy.Name))
@@ -298,11 +303,7 @@ func BuildAndRunContainer(ctx context.Context, eazy config.EazyYml, cfg config.D
 
 }
 
-func KillContainer(ctx context.Context, id string) error {
-	dockerClient, err := client.NewClientWithOpts(client.WithVersion("1.40"))
-	if err != nil {
-		return err
-	}
-	err = dockerClient.ContainerKill(ctx, id, "KILL")
-	return err
+// KillContainer stops a runtime container
+func (runtime DockerRuntime) KillContainer(ctx context.Context, id string) error {
+	return runtime.client.ContainerKill(ctx, id, "KILL")
 }
