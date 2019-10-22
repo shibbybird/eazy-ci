@@ -1,8 +1,6 @@
 package runtimes
 
 import (
-	"errors"
-
 	"github.com/shibbybird/eazy-ci/lib/config"
 )
 
@@ -16,6 +14,7 @@ func NewRuntime(cfg config.EazyYml) (ContainerRuntime, error) {
 	case dockerRuntime:
 		return NewDockerRuntime()
 	default:
-		return nil, errors.New("No Runtime Defined")
+		// return nil, errors.New("No Runtime Defined")
+		return NewDockerRuntime()
 	}
 }
