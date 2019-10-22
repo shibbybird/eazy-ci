@@ -13,12 +13,13 @@ import (
 
 	"github.com/docker/docker/pkg/term"
 	"github.com/shibbybird/eazy-ci/lib/builders"
+	"github.com/shibbybird/eazy-ci/lib/runtimes"
 	"github.com/shibbybird/eazy-ci/lib/utils"
 
 	"github.com/shibbybird/eazy-ci/lib/config"
 )
 
-var VERSION = "v0.0.2"
+var version = "v0.0.2"
 
 var liveContainerIDs = []string{}
 var routableLinks = []string{}
@@ -28,12 +29,15 @@ var oldStateOut *term.State = nil
 // end of code for environment variables
 
 func main() {
+	var runtime runtimes.ContainerRuntime
 	ctx := context.Background()
+
+	doCleanup := cleanUp(ctx, &runtime)
 
 	// Create a .eazy directory in user home
 	homeDir, err := utils.GetEazyHomeDir()
 	if err != nil {
-		fail(ctx, err)
+		doCleanup(err)
 	}
 	if _, err := os.Stat(homeDir); os.IsNotExist(err) {
 		os.Mkdir(homeDir, 0775)
@@ -45,7 +49,7 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		for range c {
-			cleanUp(ctx, 1, nil)
+			doCleanup(errors.New("Interrupted by user"))
 		}
 	}()
 
@@ -59,18 +63,22 @@ func main() {
 	flag.Parse()
 
 	if *getVersion {
-		fmt.Println(VERSION)
+		fmt.Println(version)
 		os.Exit(0)
 	}
 
 	fileData, err := ioutil.ReadFile(*filePath)
 	if err != nil {
-		fail(ctx, err)
+		doCleanup(err)
 	}
 
 	yml, err := config.EazyYmlUnmarshal(fileData)
 	if err != nil {
-		fail(ctx, err)
+		doCleanup(err)
+	}
+
+	if runtime, err = runtimes.NewRuntime(yml); err != nil {
+		doCleanup(err)
 	}
 
 	dependencies := []config.EazyYml{}
@@ -82,14 +90,14 @@ func main() {
 		if strings.Contains(strings.ToLower(err.Error()), "ssh") {
 			err = utils.SetUpSSHKeys()
 			if err != nil {
-				fail(ctx, err)
+				doCleanup(err)
 			}
 			err = utils.GetDependencies(yml, &dependencies, *pemKeyPath)
 			if err != nil {
-				fail(ctx, err)
+				doCleanup(err)
 			}
 		} else {
-			fail(ctx, err)
+			doCleanup(err)
 		}
 	}
 
@@ -100,7 +108,7 @@ func main() {
 	for _, d := range dependencies {
 		err = utils.GetPeerDependencies(d, &peerDependencies, peerDependenciesSet, *pemKeyPath)
 		if err != nil {
-			fail(ctx, errors.New("can not find all peer dependencies"))
+			doCleanup(errors.New("can not find all peer dependencies"))
 		}
 	}
 	err = utils.GetPeerDependencies(yml, &peerDependencies, peerDependenciesSet, *pemKeyPath)
@@ -108,42 +116,42 @@ func main() {
 		if strings.Contains(strings.ToLower(err.Error()), "ssh") {
 			err = utils.SetUpSSHKeys()
 			if err != nil {
-				fail(ctx, err)
+				doCleanup(err)
 			}
 			err = utils.GetPeerDependencies(yml, &peerDependencies, peerDependenciesSet, *pemKeyPath)
 			if err != nil {
-				fail(ctx, errors.New("can not find peer dependencies on eazy.yml"))
+				doCleanup(errors.New("can not find peer dependencies on eazy.yml"))
 			}
 		} else {
-			fail(ctx, err)
+			doCleanup(err)
 		}
 	}
 
 	for _, d := range peerDependencies {
-		startUnit(ctx, d, *openPortsLocally)
+		startUnit(ctx, d, *openPortsLocally, runtime)
 	}
 
 	for _, d := range dependencies {
-		startUnit(ctx, d, *openPortsLocally)
+		startUnit(ctx, d, *openPortsLocally, runtime)
 	}
 
 	envBuilder := builders.GetBuildEnvironment(yml.Build.BuildEnvironment)
 	localCacheMounts, err := envBuilder.GetLocalCacheMounts()
 
 	if err != nil {
-		fail(ctx, err)
+		doCleanup(err)
 	}
 
 	buildImageDocker, err := envBuilder.GetBuildContainerOptions()
 
 	if err != nil {
-		fail(ctx, err)
+		doCleanup(err)
 	}
 
 	var integrationImageID string
 
 	if len(yml.Integration.Bootstrap) > 0 {
-		integrationImageID, err = utils.BuildAndRunContainer(ctx, yml, config.DockerConfig{
+		integrationImageID, err = runtime.BuildAndRunContainer(ctx, yml, config.RuntimeConfig{
 			Dockerfile:  "Integration.Dockerfile",
 			Command:     yml.Integration.Bootstrap,
 			Wait:        true,
@@ -153,7 +161,7 @@ func main() {
 		}, &routableLinks, &liveContainerIDs)
 
 		if err != nil {
-			fail(ctx, err)
+			doCleanup(err)
 		}
 	}
 
@@ -161,15 +169,15 @@ func main() {
 
 		if len(yml.Build.Image) > 0 {
 			buildImageDocker.Command = yml.Build.Command
-			_, err := utils.StartContainerByEazyYml(ctx, yml, yml.Build.Image,
+			_, err := runtime.StartContainerByEazyYml(ctx, yml, yml.Build.Image,
 				buildImageDocker, &routableLinks, &liveContainerIDs)
 
 			if err != nil {
-				fail(ctx, err)
+				doCleanup(err)
 			}
 		}
 
-		_, err = utils.BuildAndRunContainer(ctx, yml, config.DockerConfig{
+		_, err = runtime.BuildAndRunContainer(ctx, yml, config.RuntimeConfig{
 			Env:         yml.Deployment.Env,
 			Dockerfile:  "Dockerfile",
 			Command:     []string{},
@@ -180,11 +188,11 @@ func main() {
 		}, &routableLinks, &liveContainerIDs)
 
 		if err != nil {
-			fail(ctx, err)
+			doCleanup(err)
 		}
 
 		if len(yml.Deployment.Health) > 0 {
-			healthDockerConfig := config.DockerConfig{
+			healthDockerConfig := config.RuntimeConfig{
 				Dockerfile:    "Integration.Dockerfile",
 				Command:       yml.Deployment.Health,
 				Wait:          true,
@@ -195,12 +203,12 @@ func main() {
 			}
 			if len(integrationImageID) > 0 {
 				log.Println(integrationImageID)
-				_, err = utils.StartContainerByEazyYml(ctx, yml, integrationImageID, healthDockerConfig, &routableLinks, &liveContainerIDs)
+				_, err = runtime.StartContainerByEazyYml(ctx, yml, integrationImageID, healthDockerConfig, &routableLinks, &liveContainerIDs)
 			} else {
-				_, err = utils.BuildAndRunContainer(ctx, yml, healthDockerConfig, &routableLinks, &liveContainerIDs)
+				_, err = runtime.BuildAndRunContainer(ctx, yml, healthDockerConfig, &routableLinks, &liveContainerIDs)
 			}
 			if err != nil {
-				fail(ctx, err)
+				doCleanup(err)
 			}
 		}
 	}
@@ -212,18 +220,18 @@ func main() {
 		// if not then use the integration docker image
 		// Why do you not need a build image?
 		if len(yml.Build.Image) > 0 && *isDev {
-			_, err = utils.StartContainerByEazyYml(ctx, yml, yml.Build.Image, buildImageDocker, &routableLinks, &liveContainerIDs)
+			_, err = runtime.StartContainerByEazyYml(ctx, yml, yml.Build.Image, buildImageDocker, &routableLinks, &liveContainerIDs)
 		} else {
 			buildImageDocker.Dockerfile = "Integration.Dockerfile"
-			_, err = utils.BuildAndRunContainer(ctx, yml, buildImageDocker, &routableLinks, &liveContainerIDs)
+			_, err = runtime.BuildAndRunContainer(ctx, yml, buildImageDocker, &routableLinks, &liveContainerIDs)
 		}
 
 		if err != nil {
-			fail(ctx, err)
+			doCleanup(err)
 		}
 
 	} else {
-		_, err := utils.BuildAndRunContainer(ctx, yml, config.DockerConfig{
+		_, err := runtime.BuildAndRunContainer(ctx, yml, config.RuntimeConfig{
 			Dockerfile:  "Integration.Dockerfile",
 			Command:     yml.Integration.RunTest,
 			Wait:        true,
@@ -233,69 +241,68 @@ func main() {
 		}, &routableLinks, &liveContainerIDs)
 
 		if err != nil {
-			fail(ctx, err)
+			doCleanup(err)
 		}
-		success(ctx)
+		doCleanup(nil)
 	}
 
-	success(ctx)
+	doCleanup(nil)
 }
 
-func startUnit(ctx context.Context, yml config.EazyYml, openPortsLocally bool) {
+func startUnit(ctx context.Context, yml config.EazyYml, openPortsLocally bool, runtime runtimes.ContainerRuntime) {
+	doCleanup := cleanUp(ctx, &runtime)
+
 	if len(yml.Integration.Bootstrap) > 0 {
-		_, err := utils.StartContainerByEazyYml(ctx, yml, config.GetLatestIntegrationImageName(yml), config.DockerConfig{
+		_, err := runtime.StartContainerByEazyYml(ctx, yml, config.GetLatestIntegrationImageName(yml), config.RuntimeConfig{
 			Command:     yml.Integration.Bootstrap,
 			Wait:        true,
 			ExposePorts: false,
 		}, &routableLinks, &liveContainerIDs)
 
 		if err != nil {
-			fail(ctx, err)
+			doCleanup(err)
 		}
 	}
-	_, err := utils.StartContainerByEazyYml(ctx, yml, "", config.DockerConfig{
+	_, err := runtime.StartContainerByEazyYml(ctx, yml, "", config.RuntimeConfig{
 		Env:         yml.Deployment.Env,
 		Wait:        false,
 		ExposePorts: openPortsLocally,
 		IsRootImage: true,
 	}, &routableLinks, &liveContainerIDs)
 	if err != nil {
-		fail(ctx, err)
+		doCleanup(err)
 	}
 	if len(yml.Deployment.Health) > 0 {
-		_, err := utils.StartContainerByEazyYml(ctx, yml, config.GetLatestIntegrationImageName(yml), config.DockerConfig{
+		_, err := runtime.StartContainerByEazyYml(ctx, yml, config.GetLatestIntegrationImageName(yml), config.RuntimeConfig{
 			Command:     yml.Deployment.Health,
 			Wait:        true,
 			ExposePorts: false,
 		}, &routableLinks, &liveContainerIDs)
 		if err != nil {
-			fail(ctx, err)
+			doCleanup(err)
 		}
 	}
 }
 
-func success(ctx context.Context) {
-	cleanUp(ctx, 0, nil)
-}
-
-func fail(ctx context.Context, err error) {
-	cleanUp(ctx, 1, err)
-}
-
-func cleanUp(ctx context.Context, exitCode int, err error) {
-	log.Println("cleaning up running containers...")
-	term.RestoreTerminal(os.Stdout.Fd(), oldStateOut)
-	for _, id := range liveContainerIDs {
-		err := utils.KillContainer(ctx, id)
+func cleanUp(ctx context.Context, runtime *runtimes.ContainerRuntime) func(err error) {
+	return func(err error) {
+		log.Println("cleaning up running containers...")
+		term.RestoreTerminal(os.Stdout.Fd(), oldStateOut)
+		for _, id := range liveContainerIDs {
+			if runtime != nil {
+				err := (*runtime).KillContainer(ctx, id)
+				if err == nil {
+					log.Println("container successfully shutdown: " + id)
+				}
+			}
+		}
 		if err == nil {
-			log.Println("container successfully shutdown: " + id)
+			log.Println("Succeeded!")
+			os.Exit(0)
+		} else {
+			log.Println(err)
+			log.Println("CI Failed!")
+			os.Exit(1)
 		}
 	}
-	if exitCode == 0 {
-		log.Println("Succeeded!")
-	} else {
-		log.Println(err)
-		log.Println("CI Failed!")
-	}
-	os.Exit(exitCode)
 }

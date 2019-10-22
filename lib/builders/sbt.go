@@ -10,17 +10,17 @@ import (
 
 type sbtEnvironmentBuilder struct{}
 
-func (s sbtEnvironmentBuilder) GetBuildContainerOptions() (config.DockerConfig, error) {
+func (s sbtEnvironmentBuilder) GetBuildContainerOptions() (config.RuntimeConfig, error) {
 	cacheMounts, err := s.GetLocalCacheMounts()
 
 	if err != nil {
-		return config.DockerConfig{}, err
+		return config.RuntimeConfig{}, err
 	}
 
 	pwd, err := os.Getwd()
 
 	if err != nil {
-		return config.DockerConfig{}, err
+		return config.RuntimeConfig{}, err
 	}
 
 	mounts := []mount.Mount{
@@ -35,7 +35,7 @@ func (s sbtEnvironmentBuilder) GetBuildContainerOptions() (config.DockerConfig, 
 
 	mounts = append(mounts, cacheMounts...)
 
-	return config.DockerConfig{
+	return config.RuntimeConfig{
 		User:        "root",
 		Wait:        true,
 		ExposePorts: false,

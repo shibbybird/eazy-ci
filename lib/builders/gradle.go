@@ -10,17 +10,17 @@ import (
 
 type gradleEnvironmentBuilder struct{}
 
-func (g gradleEnvironmentBuilder) GetBuildContainerOptions() (config.DockerConfig, error) {
+func (g gradleEnvironmentBuilder) GetBuildContainerOptions() (config.RuntimeConfig, error) {
 	cacheMounts, err := g.GetLocalCacheMounts()
 
 	if err != nil {
-		return config.DockerConfig{}, err
+		return config.RuntimeConfig{}, err
 	}
 
 	pwd, err := os.Getwd()
 
 	if err != nil {
-		return config.DockerConfig{}, err
+		return config.RuntimeConfig{}, err
 	}
 
 	mounts := []mount.Mount{
@@ -35,7 +35,7 @@ func (g gradleEnvironmentBuilder) GetBuildContainerOptions() (config.DockerConfi
 
 	mounts = append(mounts, cacheMounts...)
 
-	return config.DockerConfig{
+	return config.RuntimeConfig{
 		User:        "root",
 		Wait:        true,
 		ExposePorts: false,

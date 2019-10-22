@@ -9,7 +9,7 @@ import (
 )
 
 type buildEnvironment interface {
-	GetBuildContainerOptions() (config.DockerConfig, error)
+	GetBuildContainerOptions() (config.RuntimeConfig, error)
 	GetLocalCacheMounts() ([]mount.Mount, error)
 }
 
@@ -33,11 +33,11 @@ func GetBuildEnvironment(envBuilder string) buildEnvironment {
 
 type defaultEnvironmentBuilder struct{}
 
-func (g defaultEnvironmentBuilder) GetBuildContainerOptions() (config.DockerConfig, error) {
+func (g defaultEnvironmentBuilder) GetBuildContainerOptions() (config.RuntimeConfig, error) {
 	pwd, err := os.Getwd()
 
 	if err != nil {
-		return config.DockerConfig{}, err
+		return config.RuntimeConfig{}, err
 	}
 
 	mounts := []mount.Mount{
@@ -50,7 +50,7 @@ func (g defaultEnvironmentBuilder) GetBuildContainerOptions() (config.DockerConf
 		},
 	}
 
-	return config.DockerConfig{
+	return config.RuntimeConfig{
 		User:        "root",
 		Wait:        true,
 		ExposePorts: false,

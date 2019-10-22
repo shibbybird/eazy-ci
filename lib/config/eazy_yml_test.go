@@ -22,6 +22,7 @@ func TestEazyYml(t *testing.T) {
 		eazy.Releases[0] != "v1.0.0" ||
 		eazy.Releases[1] != "v1.1.0" ||
 		eazy.Image != "test/image" ||
+		eazy.Runtime != "docker" ||
 		eazy.Deployment.Health[0] != "/bin/sh" ||
 		eazy.Deployment.Health[1] != "-c" ||
 		eazy.Deployment.Health[2] != "while ! curl http://host.docker.internal:8080/health; do sleep 1; done;" ||
