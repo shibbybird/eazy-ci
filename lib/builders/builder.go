@@ -46,7 +46,7 @@ func (g defaultEnvironmentBuilder) GetBuildContainerOptions() (config.RuntimeCon
 			Target:      "/root/build",
 			Type:        mount.TypeBind,
 			ReadOnly:    false,
-			Consistency: mount.ConsistencyFull,
+			Consistency: mount.ConsistencyDelegated,
 		},
 	}
 
