@@ -29,7 +29,7 @@ func (s sbtEnvironmentBuilder) GetBuildContainerOptions() (config.RuntimeConfig,
 			Target:      "/root/build",
 			Type:        mount.TypeBind,
 			ReadOnly:    false,
-			Consistency: mount.ConsistencyFull,
+			Consistency: mount.ConsistencyDelegated,
 		},
 	}
 
@@ -79,28 +79,28 @@ func (s sbtEnvironmentBuilder) GetLocalCacheMounts() ([]mount.Mount, error) {
 			Target:      "/root/.sbt",
 			Type:        mount.TypeBind,
 			ReadOnly:    false,
-			Consistency: mount.ConsistencyFull,
+			Consistency: mount.ConsistencyDelegated,
 		},
 		mount.Mount{
 			Source:      sbtDir,
 			Target:      "/home/sbtuser/.sbt",
 			Type:        mount.TypeBind,
 			ReadOnly:    false,
-			Consistency: mount.ConsistencyFull,
+			Consistency: mount.ConsistencyDelegated,
 		},
 		mount.Mount{
 			Source:      ivyCacheDir,
 			Target:      "/root/.ivy2",
 			Type:        mount.TypeBind,
 			ReadOnly:    false,
-			Consistency: mount.ConsistencyFull,
+			Consistency: mount.ConsistencyDelegated,
 		},
 		mount.Mount{
 			Source:      ivyCacheDir,
 			Target:      "/home/sbtuser/.ivy2",
 			Type:        mount.TypeBind,
 			ReadOnly:    false,
-			Consistency: mount.ConsistencyFull,
+			Consistency: mount.ConsistencyDelegated,
 		},
 	}, nil
 }
