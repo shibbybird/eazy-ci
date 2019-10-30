@@ -69,14 +69,14 @@ func (g gradleEnvironmentBuilder) GetLocalCacheMounts() ([]mount.Mount, error) {
 			Target:      "/root/.gradle",
 			Type:        mount.TypeBind,
 			ReadOnly:    false,
-			Consistency: mount.ConsistencyFull,
+			Consistency: mount.ConsistencyDelegated,
 		},
 		mount.Mount{
 			Source:      gradleDir,
 			Target:      "/home/gradle/.gradle",
 			Type:        mount.TypeBind,
 			ReadOnly:    false,
-			Consistency: mount.ConsistencyFull,
+			Consistency: mount.ConsistencyDelegated,
 		},
 	}, nil
 }
