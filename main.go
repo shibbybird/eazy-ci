@@ -205,7 +205,7 @@ func main() {
 				log.Println(integrationImageID)
 				_, err = runtime.StartContainerByEazyYml(ctx, yml, integrationImageID, healthDockerConfig, &routableLinks, &liveContainerIDs)
 			} else {
-				_, err = runtime.BuildAndRunContainer(ctx, yml, healthDockerConfig, &routableLinks, &liveContainerIDs)
+				integrationImageID, err = runtime.BuildAndRunContainer(ctx, yml, healthDockerConfig, &routableLinks, &liveContainerIDs)
 			}
 			if err != nil {
 				doCleanup(err)
@@ -223,7 +223,12 @@ func main() {
 			_, err = runtime.StartContainerByEazyYml(ctx, yml, yml.Build.Image, buildImageDocker, &routableLinks, &liveContainerIDs)
 		} else {
 			buildImageDocker.Dockerfile = "Integration.Dockerfile"
-			_, err = runtime.BuildAndRunContainer(ctx, yml, buildImageDocker, &routableLinks, &liveContainerIDs)
+			if len(integrationImageID) > 0 {
+				buildImageDocker.SkipImagePull = true
+				_, err = runtime.StartContainerByEazyYml(ctx, yml, integrationImageID, buildImageDocker, &routableLinks, &liveContainerIDs)
+			} else {
+				integrationImageID, err = runtime.BuildAndRunContainer(ctx, yml, buildImageDocker, &routableLinks, &liveContainerIDs)
+			}
 		}
 
 		if err != nil {
@@ -231,17 +236,25 @@ func main() {
 		}
 
 	} else {
-		_, err := runtime.BuildAndRunContainer(ctx, yml, config.RuntimeConfig{
+		var runtimeConfig = config.RuntimeConfig{
 			Dockerfile:  "Integration.Dockerfile",
 			Command:     yml.Integration.RunTest,
 			Wait:        true,
 			ExposePorts: false,
 			Attach:      false,
 			Mounts:      localCacheMounts,
-		}, &routableLinks, &liveContainerIDs)
-
-		if err != nil {
-			doCleanup(err)
+		}
+		if len(integrationImageID) > 0 {
+			runtimeConfig.SkipImagePull = true
+			_, err = runtime.StartContainerByEazyYml(ctx, yml, integrationImageID, runtimeConfig, &routableLinks, &liveContainerIDs)
+			if err != nil {
+				doCleanup(err)
+			}
+		} else {
+			integrationImageID, err = runtime.BuildAndRunContainer(ctx, yml, runtimeConfig, &routableLinks, &liveContainerIDs)
+			if err != nil {
+				doCleanup(err)
+			}
 		}
 		doCleanup(nil)
 	}
